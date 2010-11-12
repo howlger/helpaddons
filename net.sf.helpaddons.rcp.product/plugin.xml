@@ -7,10 +7,10 @@
          point="org.eclipse.core.runtime.products">
       <product
             application="net.sf.helpaddons.rcp.product.application"
-            >
+            name="%appName">
          <property
                name="appName"
-               >
+               value="%appName">
          </property>
          <property
                name="windowImages"
