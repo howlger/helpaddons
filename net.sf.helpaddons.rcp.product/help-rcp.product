@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?pde version="3.5"?>
+
+<product id="net.sf.helpaddons.rcp.product.product" application="net.sf.helpaddons.rcp.product.application" useFeatures="true" includeLaunchers="true">
+
+
+   <configIni use="default">
+      <win32>/net.sf.helpaddons.rcp.product/config.ini</win32>
+   </configIni>
+
+   <launcherArgs>
+      <programArgs>-clean</programArgs>
+      <vmArgsMac>-XstartOnFirstThread -Dorg.eclipse.swt.internal.carbon.smallFonts</vmArgsMac>
+   </launcherArgs>
+
+   <windowImages i16="/net.sf.helpaddons.rcp.product/icons/help16.gif" i32="/net.sf.helpaddons.rcp.product/icons/help32.gif" i48="/net.sf.helpaddons.rcp.product/icons/help48.gif" i64="/net.sf.helpaddons.rcp.product/icons/help64.gif" i128="/net.sf.helpaddons.rcp.product/icons/help128.gif"/>
+
+   <splash
+      location="net.sf.helpaddons.rcp.product" />
+   <launcher name="Help">
+      <solaris/>
+      <win useIco="true">
+         <ico path="/net.sf.helpaddons.rcp.product/icons/help.ico"/>
+         <bmp/>
+      </win>
+   </launcher>
+
+
+   <vm>
+   </vm>
+
+   <license>
+        <url>%licenseURL</url>
+        <text>
+   %license
+         </text>
+   </license>
+
+   <plugins>
+   </plugins>
+
+   <features>
+      <feature id="net.sf.helpaddons.rcp.feature" version="0.5.0"/>
+   </features>
+
+
+</product>
