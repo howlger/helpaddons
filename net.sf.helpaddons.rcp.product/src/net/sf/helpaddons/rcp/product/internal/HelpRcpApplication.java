@@ -89,6 +89,7 @@ public class HelpRcpApplication implements IApplication {
 
     public synchronized Object start(IApplicationContext context)
             throws Exception {
+//        Display.setAppName(context.getBrandingName());
 
         // start Help Web Server
         BaseHelpSystem.setMode(BaseHelpSystem.MODE_STANDALONE);
@@ -104,6 +105,21 @@ public class HelpRcpApplication implements IApplication {
         Display display = Display.getCurrent();
         if (display == null)
             display = new Display();
+
+        // use open file feature to open search results
+        display.addListener(SWT.OpenDocument, new Listener(){
+            public void handleEvent(final Event event) {
+                if (event.text != null) {
+                    Display.getCurrent().asyncExec(new Runnable() {
+                        public void run() {
+                            HelpDisplay helpDisplay = BaseHelpSystem.getHelpDisplay();
+                            helpDisplay.displaySearch("searchWord=" + event.text, "", false);
+                        };
+                    });
+                }
+            }
+        });
+
         display.asyncExec(new Runnable() {
             public void run() {
                 InternalPlatform.getDefault().endSplash();
