@@ -10,8 +10,10 @@
  *******************************************************************************/
 package net.sf.helpaddons.rcp.product.internal;
 
+import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.net.URLEncoder;
 
 import org.eclipse.core.internal.runtime.InternalPlatform;
 import org.eclipse.core.runtime.Platform;
@@ -112,8 +114,18 @@ public class HelpRcpApplication implements IApplication {
                 if (event.text != null) {
                     Display.getCurrent().asyncExec(new Runnable() {
                         public void run() {
+                            String query = event.text;
+                            try {
+                                query = URLEncoder.encode(query, "UTF-8");
+                            } catch (UnsupportedEncodingException e) {
+                                // TODO Auto-generated catch block
+                                // UTF-8 encoding is always supported, but...
+                                e.printStackTrace();
+                            }
                             HelpDisplay helpDisplay = BaseHelpSystem.getHelpDisplay();
-                            helpDisplay.displaySearch("searchWord=" + event.text, "", false);
+                            helpDisplay.displaySearch("searchWord=" + query,
+                                                      "",
+                                                      false);
                         };
                     });
                 }

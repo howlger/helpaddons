@@ -19,4 +19,17 @@ public interface IHrefResolver {
      */
     String resolve(String href);
 
+    /**
+     * @return the relative link to the HTML error page which is used as link
+     *         target instead of the original target if the target HTML file
+     *         does not exist in the pool, e.g. {@code "../errors/404.htm"}
+     */
+    String getNotFoundHref();
+
+    /**
+     * @return the HTML class name of links without an existing link target,
+     *         e.g. {@code "error404"}
+     */
+    String getNotFoundClassName();
+
 }
