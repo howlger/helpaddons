@@ -34,7 +34,8 @@ public class CrossLinkManagerPlugin implements BundleActivator, IRegistryChangeL
     private static final String ID =
         "net.sf.helpaddons.crosslinkmanager"; //$NON-NLS-1$
 
-    private static final String CONTENT_POOLS_EXTENSION_POINT_ID = "contentPools";
+    private static final String CONTENT_POOLS_EXTENSION_POINT_ID =
+        "contentPools";  //$NON-NLS-1$
 
     private final HashSet<IExtension> extensions = new HashSet<IExtension>();
 
@@ -67,8 +68,6 @@ public class CrossLinkManagerPlugin implements BundleActivator, IRegistryChangeL
         reg.addRegistryChangeListener(this);
         registryChanged();
     }
-
-    // TODO see http://wiki.eclipse.org/FAQ_How_do_I_make_my_plug-in_dynamic_aware%3F
 
     public void stop(BundleContext bundleContext) throws Exception {
         plugin = null;
@@ -124,46 +123,59 @@ public class CrossLinkManagerPlugin implements BundleActivator, IRegistryChangeL
 
     }
 
-    public static IHrefResolver createHrefResolver(String sourceBundleSymbolicName, Locale locale) {
-        return getDefault().privateCreateHrefResolver(sourceBundleSymbolicName, locale);
+    public static IHrefResolver createHrefResolver(String sourceBundleSymbolicName, String sourceHref, Locale locale) {
+        return getDefault().privateCreateHrefResolver(sourceBundleSymbolicName, sourceHref, locale);
     }
 
-    private IHrefResolver privateCreateHrefResolver(String sourceBundleSymbolicName, Locale locale) {
-        return new MyHrefResolver(sourceBundleSymbolicName, locale);
+    private IHrefResolver privateCreateHrefResolver(String sourceBundleSymbolicName, String sourceHref, Locale locale) {
+        return new MyHrefResolver(sourceBundleSymbolicName, sourceHref, locale);
     }
 
-    private class MyHrefResolver implements IHrefResolver {
+    private class MyHrefResolver extends AbstractHrefResolver {
 
         private final String sourceBundle;
         private final Locale locale;
         private final Set<String> pools;
 
-        public MyHrefResolver(String sourceBundleSymbolicName, Locale locale) {
+        public MyHrefResolver(String sourceBundleSymbolicName,
+                              String sourceHref,
+                              Locale locale) {
+            super(sourceHref);
             this.sourceBundle = sourceBundleSymbolicName;
             this.locale = locale;
             pools = poolsOfBundle.get(sourceBundleSymbolicName);
         }
 
-        public String resolve(String href) {
+        @Override
+        protected boolean computeExistsInSourceBundle(String href) {
+            return UntransformedHelpContent.checkExists(sourceBundle,
+                                                        href,
+                                                        locale);
+        }
+
+        @Override
+        protected String computeTargetBundle(String href) {
             if (pools == null) return null;
-
-            // if exists in sourceBundle -> do not change
-            if (UntransformedHelpContent.checkExists(sourceBundle, href, locale)) {
-                return href;
-            }
-
             for (String pool : pools) {
                 for (String bundle : bundlesOfPool.get(pool)) {
 
                     if (UntransformedHelpContent.checkExists(bundle, href, locale)) {
-                        return "../" + bundle + "/" + href;
+                        return bundle;
                     }
 
                 }
 
             }
-
             return null;
+        }
+
+        @Override
+        protected String getNotFoundHtmlFile() {
+            return "error404.htm";
+        }
+
+        public String getNotFoundClassName() {
+            return "error404";
         }
 
     }

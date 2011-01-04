@@ -97,12 +97,24 @@ public class TransformedLinksInputStreamTest {
         StringInputStream in = new StringInputStream(beforeTransformed);
 
         IHrefResolver dummyResolver = new IHrefResolver() {
+
             @Override
             public String resolve(String href) {
                 if (href.equals(NOT_FOUND)) return null;
 
                 return "-" + href.toUpperCase() + "-";
             }
+
+            @Override
+            public String getNotFoundHref() {
+                return "error404.htm";
+            }
+
+            @Override
+            public String getNotFoundClassName() {
+                return "error404";
+            }
+
         };
 
         TransformedLinksInputStream transformed =

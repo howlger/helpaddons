@@ -19,17 +19,9 @@ import java.util.LinkedList;
 // TODO not for UTF-16
 public class TransformedLinksInputStream extends InputStream {
 
-    /** 'href' of a link target which can not be resolved. */
-    private static final byte[] NOT_FOUND_HREF =
-        "error404.htm".getBytes(); //$NON-NLS-1$
-
     /** The String ' class=' as bytes. */
     private static final byte[] CLASS_IS =
         " class=".getBytes(); //$NON-NLS-1$
-
-    /** 'class' of a link target which can not be resolved. */
-    private static final byte[] NOT_FOUND_CLASS =
-        "error404".getBytes(); //$NON-NLS-1$
 
     private boolean endOfIn = false;
     private boolean awaitStartOfElement = true;
@@ -44,9 +36,21 @@ public class TransformedLinksInputStream extends InputStream {
     /** Resolver to transform 'href' attribute values. */
     private final IHrefResolver hrefResolver;
 
+    private final byte[] notFoundClassName;
+
     public TransformedLinksInputStream(InputStream in, IHrefResolver hrefResolver) {
         this.in = in;
-        this.hrefResolver = hrefResolver;;
+        this.hrefResolver = hrefResolver;
+        this.notFoundClassName = computeClassName(hrefResolver);
+    }
+
+    private static byte[] computeClassName(IHrefResolver hrefResolver) {
+         try {
+             return hrefResolver.getNotFoundClassName().getBytes("UTF-8");
+         } catch (UnsupportedEncodingException e) {
+             e.printStackTrace();
+             return hrefResolver.getNotFoundClassName().getBytes();
+         }
     }
 
     @Override
@@ -275,7 +279,7 @@ public class TransformedLinksInputStream extends InputStream {
 
         String hrefResolved = hrefResolver.resolve(new String(href));
         byte[] hrefReplacement = hrefResolved == null
-                                 ? NOT_FOUND_HREF
+                                 ? hrefResolver.getNotFoundHref().getBytes("UTF-8")
                                  : hrefResolved.getBytes("UTF-8");
 
         // first value
@@ -284,7 +288,7 @@ public class TransformedLinksInputStream extends InputStream {
                 buffer(b);
             }
         } else if (classValueExists && hrefValueEnd > classValueEnd) {
-            for (byte b : hrefResolved == null ? NOT_FOUND_CLASS : clazz) {
+            for (byte b : hrefResolved == null ? notFoundClassName : clazz) {
                 buffer(b);
             }
         }
@@ -303,7 +307,7 @@ public class TransformedLinksInputStream extends InputStream {
                     buffer(b);
                 }
             } else {
-                for (byte b : hrefResolved == null ? NOT_FOUND_CLASS : clazz) {
+                for (byte b : hrefResolved == null ? notFoundClassName : clazz) {
                     buffer(b);
                 }
             }
@@ -317,7 +321,7 @@ public class TransformedLinksInputStream extends InputStream {
                 buffer(b);
             }
             buffer(rest[0]); // 'href' end quote as 'class' start quote
-            for (byte b : NOT_FOUND_CLASS) {
+            for (byte b : notFoundClassName) {
                 buffer(b);
             }
             // the end quote is the first byte of rest

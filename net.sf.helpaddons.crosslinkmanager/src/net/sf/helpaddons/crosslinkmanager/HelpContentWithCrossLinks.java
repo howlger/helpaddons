@@ -24,13 +24,15 @@ public class HelpContentWithCrossLinks implements IHelpContentProducer {
                                   ? href
                                   : href.substring(0, href.indexOf('?'));
 
-        InputStream original = UntransformedHelpContent.getInputStream(pluginID, href, locale);
+        InputStream original =
+            UntransformedHelpContent.getInputStream(pluginID, href, locale);
 
+        // transform (X)HTML files only
         if (   hrefWithoutQuery.endsWith(".htm")
             || hrefWithoutQuery.endsWith(".html")
             || hrefWithoutQuery.endsWith(".xhtml")) {
             IHrefResolver hrefResolver =
-                CrossLinkManagerPlugin.createHrefResolver(pluginID, locale);
+                CrossLinkManagerPlugin.createHrefResolver(pluginID, href, locale);
             return new TransformedLinksInputStream(original, hrefResolver);
         }
 
