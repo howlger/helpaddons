@@ -16,7 +16,9 @@ import org.junit.runners.Suite.SuiteClasses;
 
 @RunWith(Suite.class)
 @SuiteClasses({ AbstractHrefResolverTest.class,
-                TransformedLinksInputStreamTest.class })
+                CrossLinksResolvedInputStreamTest.class,
+                PoolRegistryTest.class,
+                HelpContentWithCrossLinksTest.class})
 public class AllTests {
 
 }

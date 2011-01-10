@@ -10,14 +10,10 @@
  *******************************************************************************/
 package net.sf.helpaddons.crosslinkmanager;
 
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 
-import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.IExtension;
 import org.eclipse.core.runtime.IExtensionDelta;
 import org.eclipse.core.runtime.IExtensionPoint;
@@ -37,41 +33,41 @@ public class CrossLinkManagerPlugin implements BundleActivator, IRegistryChangeL
     private static final String CONTENT_POOLS_EXTENSION_POINT_ID =
         "contentPools";  //$NON-NLS-1$
 
-    private final HashSet<IExtension> extensions = new HashSet<IExtension>();
-
-    private final Map<String, Set<String>> bundlesOfPool =
-        new HashMap<String, Set<String>>();
-
-    private final Map<String, Set<String>> poolsOfBundle =
-        new HashMap<String, Set<String>>();
-
     private static CrossLinkManagerPlugin plugin;
+
+    private final Set<IExtension> contentPoolsExtensions =
+        new HashSet<IExtension>();
+
+    private final PoolRegistry poolRegistry = new PoolRegistry();
 
     /**
      * @return the singleton instance of this class representing plug-in
      */
-    public static CrossLinkManagerPlugin getDefault() {
+    private static CrossLinkManagerPlugin getDefault() {
         return plugin;
     }
 
     public void start(BundleContext bundleContext) throws Exception {
         if (plugin != null) {
-            throw new RuntimeException("Bundle must be singleton");
+            throw new RuntimeException("Bundle must be singleton"); //$NON-NLS-1$
         }
         plugin = this;
         IExtensionRegistry reg = Platform.getExtensionRegistry();
-        IExtensionPoint pt = reg.getExtensionPoint(ID + "." + CONTENT_POOLS_EXTENSION_POINT_ID);
+        IExtensionPoint pt =
+            reg.getExtensionPoint(  ID
+                                  + "." //$NON-NLS-1$
+                                  + CONTENT_POOLS_EXTENSION_POINT_ID);
         IExtension[] allExtensions = pt.getExtensions();
         for (IExtension ext : allExtensions) {
-            extensions.add(ext);
+            contentPoolsExtensions.add(ext);
         }
         reg.addRegistryChangeListener(this);
-        registryChanged();
+        poolRegistry.changed(contentPoolsExtensions);
     }
 
     public void stop(BundleContext bundleContext) throws Exception {
         plugin = null;
-        extensions.clear();
+        contentPoolsExtensions.clear();
         IExtensionRegistry reg = Platform.getExtensionRegistry();
         reg.removeRegistryChangeListener(this);
     }
@@ -81,103 +77,30 @@ public class CrossLinkManagerPlugin implements BundleActivator, IRegistryChangeL
             event.getExtensionDeltas(ID, CONTENT_POOLS_EXTENSION_POINT_ID);
         for (int i = 0; i < deltas.length; i++) {
             if (deltas[i].getKind() == IExtensionDelta.ADDED) {
-                extensions.add(deltas[i].getExtension());
+                contentPoolsExtensions.add(deltas[i].getExtension());
             } else {
-                extensions.remove(deltas[i].getExtension());
+                contentPoolsExtensions.remove(deltas[i].getExtension());
             }
         }
-        registryChanged();
+        poolRegistry.changed(contentPoolsExtensions);
     }
 
-    private synchronized void registryChanged() {
-        bundlesOfPool.clear();
-        poolsOfBundle.clear();
-
-        for (IExtension ext : extensions) {
-            String bundleSymbolicName = ext.getNamespaceIdentifier();
-            IConfigurationElement[] poolElements = ext.getConfigurationElements();
-            for (IConfigurationElement element : poolElements) {
-                if (!"pool".equals(element.getName())) continue;
-
-                String pool = element.getAttribute("id");
-
-                // pools of bundle
-                Set<String> poolSet = poolsOfBundle.get(bundleSymbolicName);
-                if (poolSet == null) {
-                    poolSet = new LinkedHashSet<String>();
-                    poolsOfBundle.put(bundleSymbolicName, poolSet);
-                }
-                poolSet.add(pool);
-
-
-                // bundles of pool
-                Set<String> bundlesSet = bundlesOfPool.get(pool);
-                if (bundlesSet == null) {
-                    bundlesSet = new LinkedHashSet<String>();
-                    bundlesOfPool.put(pool, bundlesSet);
-                }
-                bundlesSet.add(bundleSymbolicName);
-            }
-
-        }
-
-    }
-
-    public static IHrefResolver createHrefResolver(String sourceBundleSymbolicName, String sourceHref, Locale locale) {
-        return getDefault().privateCreateHrefResolver(sourceBundleSymbolicName, sourceHref, locale);
-    }
-
-    private IHrefResolver privateCreateHrefResolver(String sourceBundleSymbolicName, String sourceHref, Locale locale) {
-        return new MyHrefResolver(sourceBundleSymbolicName, sourceHref, locale);
-    }
-
-    private class MyHrefResolver extends AbstractHrefResolver {
-
-        private final String sourceBundle;
-        private final Locale locale;
-        private final Set<String> pools;
-
-        public MyHrefResolver(String sourceBundleSymbolicName,
-                              String sourceHref,
-                              Locale locale) {
-            super(sourceHref);
-            this.sourceBundle = sourceBundleSymbolicName;
-            this.locale = locale;
-            pools = poolsOfBundle.get(sourceBundleSymbolicName);
-        }
-
-        @Override
-        protected boolean computeExistsInSourceBundle(String href) {
-            return UntransformedHelpContent.checkExists(sourceBundle,
-                                                        href,
-                                                        locale);
-        }
-
-        @Override
-        protected String computeTargetBundle(String href) {
-            if (pools == null) return null;
-            for (String pool : pools) {
-                for (String bundle : bundlesOfPool.get(pool)) {
-
-                    if (UntransformedHelpContent.checkExists(bundle, href, locale)) {
-                        return bundle;
-                    }
-
-                }
-
-            }
-            return null;
-        }
-
-        @Override
-        protected String getNotFoundHtmlFile() {
-            return "error404.htm";
-        }
-
-        public String getNotFoundClassName() {
-            return "error404";
-        }
-
+    /**
+     * @param sourceBundle source bundle symbolic name,
+     *                     e.g. {@code com.domain.mybundle}
+     * @param sourceHref path (HTML reference) of the source HTML file,
+     *                   e.g. {@code dir/file.htm}
+     * @param locale the (current) local to use
+     *               (required if the help content is localized)
+     * @return an instance of {@link IHrefResolver} associated with the source
+     *         HTML file
+     */
+    public static IHrefResolver createHrefResolver(String sourceBundle,
+                                                   String sourceHref,
+                                                   Locale locale) {
+        return getDefault().poolRegistry.createHrefResolver(sourceBundle,
+                                                            sourceHref,
+                                                            locale);
     }
 
 }

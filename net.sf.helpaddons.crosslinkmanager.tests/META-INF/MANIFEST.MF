@@ -1,9 +1,10 @@
 Manifest-Version: 1.0
 Bundle-ManifestVersion: 2
 Bundle-Name: Tests
-Bundle-SymbolicName: net.sf.helpaddons.crosslinkmanager.tests
+Bundle-SymbolicName: net.sf.helpaddons.crosslinkmanager.tests;singleton:=true
 Bundle-Version: 1.0.0.qualifier
 Bundle-RequiredExecutionEnvironment: JavaSE-1.6
 Require-Bundle: org.junit4,
  net.sf.helpaddons.crosslinkmanager,
- org.eclipse.core.runtime
+ org.eclipse.core.runtime,
+ org.eclipse.help

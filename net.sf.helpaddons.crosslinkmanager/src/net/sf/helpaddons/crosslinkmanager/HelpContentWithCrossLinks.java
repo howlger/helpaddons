@@ -17,26 +17,49 @@ import org.eclipse.help.IHelpContentProducer;
 
 public class HelpContentWithCrossLinks implements IHelpContentProducer {
 
-    public InputStream getInputStream(String pluginID, String href,
-            Locale locale) {
-
-        String hrefWithoutQuery = href.indexOf('?')< 0
-                                  ? href
-                                  : href.substring(0, href.indexOf('?'));
+    public InputStream getInputStream(String pluginID,
+                                      String href,
+                                      Locale locale) {
 
         InputStream original =
-            UntransformedHelpContent.getInputStream(pluginID, href, locale);
+            IStaticHelpContent.DEFAULT.getInputStream(pluginID,
+                                                             href,
+                                                             locale);
 
-        // transform (X)HTML files only
-        if (   hrefWithoutQuery.endsWith(".htm")
-            || hrefWithoutQuery.endsWith(".html")
-            || hrefWithoutQuery.endsWith(".xhtml")) {
+        // transform (X)HTML files only...
+        if (hasHtmlFileExtension(href)) {
             IHrefResolver hrefResolver =
-                CrossLinkManagerPlugin.createHrefResolver(pluginID, href, locale);
-            return new TransformedLinksInputStream(original, hrefResolver);
+                CrossLinkManagerPlugin.createHrefResolver(pluginID,
+                                                          href,
+                                                          locale);
+            return new CrossLinksResolvedInputStream(original, hrefResolver);
         }
 
+        // ... otherwise return the stream untransformed
         return original;
+    }
+
+    /**
+     * @param href the HTML reference to check (may contain a query or anchor
+     *             part)
+     * @return {@code true} if and only if the given HTML reference is a file
+     *         with a (X)HTML file extension.
+     */
+    public static boolean hasHtmlFileExtension(String href) {
+
+        // truncate query
+        if (href.indexOf('?') >= 0) {
+            href = href.substring(0, href.indexOf('?'));
+        }
+
+        // truncate anchor
+        if (href.indexOf('#') >= 0) {
+            href = href.substring(0, href.indexOf('#'));
+        }
+
+        return    href.endsWith(".htm")
+               || href.endsWith(".html")
+               || href.endsWith(".xhtml");
     }
 
 }

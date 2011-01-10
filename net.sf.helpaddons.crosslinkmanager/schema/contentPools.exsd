@@ -23,21 +23,21 @@
          <attribute name="point" type="string" use="required">
             <annotation>
                <documentation>
-
+                  
                </documentation>
             </annotation>
          </attribute>
          <attribute name="id" type="string">
             <annotation>
                <documentation>
-
+                  
                </documentation>
             </annotation>
          </attribute>
          <attribute name="name" type="string">
             <annotation>
                <documentation>
-
+                  
                </documentation>
                <appinfo>
                   <meta.attribute translatable="true"/>
@@ -52,28 +52,36 @@
          <attribute name="id" type="string">
             <annotation>
                <documentation>
-
+                  The ID/name of the help content pool.
+               </documentation>
+            </annotation>
+         </attribute>
+         <attribute name="bundlesToPrefer" type="string">
+            <annotation>
+               <documentation>
+                  Comma separated ordered list of bundles (bundle symbolic names) which should be used first when searching for a link target which exists in more than one pool bundle. Specified bundles which are not in the same pool will be ignored.
                </documentation>
             </annotation>
          </attribute>
       </complexType>
    </element>
 
-   <annotation>
-      <appinfo>
-         <meta.section type="since"/>
-      </appinfo>
-      <documentation>
-         [Enter the first release in which this extension point appears.]
-      </documentation>
-   </annotation>
 
    <annotation>
       <appinfo>
          <meta.section type="examples"/>
       </appinfo>
       <documentation>
-         [Enter extension point usage example here.]
+         The following sample extension adds help content to the pool named &lt;code&gt;doc-pool-42&lt;/code&gt;. If a link target does not exist in the source bundle but in more than one pool bundle then the cross-link is redirected to &lt;code&gt;net.sf.helpaddons.bundle2&lt;/code&gt; if it contains the target (because this bundle is listed as first item in the optional attribute &lt;i&gt;bundlesToPrefer&lt;/i&gt;):
+
+&lt;p&gt;
+&lt;pre&gt;
+  &lt;extension point=&quot;net.sf.helpaddons.crosslinkmanager.contentPools&quot;&gt;
+      &lt;pool id=&quot;doc-pool-42&quot;
+            bundlesToPrefer=&quot;net.sf.helpaddons.bundle2, net.sf.helpaddons.bundle3&quot;/&gt;
+  &lt;/extension&gt;&lt;/pre&gt;
+&lt;/p&gt;
+
       </documentation>
    </annotation>
 
