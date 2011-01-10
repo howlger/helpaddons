@@ -16,11 +16,11 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import net.sf.helpaddons.crosslinkmanager.IHrefResolver;
-import net.sf.helpaddons.crosslinkmanager.TransformedLinksInputStream;
+import net.sf.helpaddons.crosslinkmanager.CrossLinksResolvedInputStream;
 
 import org.junit.Test;
 
-public class TransformedLinksInputStreamTest {
+public class CrossLinksResolvedInputStreamTest {
 
     private static String NOT_FOUND = "this_target_does_not_exist";
 
@@ -117,8 +117,8 @@ public class TransformedLinksInputStreamTest {
 
         };
 
-        TransformedLinksInputStream transformed =
-            new TransformedLinksInputStream(in, dummyResolver);
+        CrossLinksResolvedInputStream transformed =
+            new CrossLinksResolvedInputStream(in, dummyResolver);
         String out = null;
         byte[] bytes = new byte[1000];
         for (int i = 0; i < bytes.length; i++) {

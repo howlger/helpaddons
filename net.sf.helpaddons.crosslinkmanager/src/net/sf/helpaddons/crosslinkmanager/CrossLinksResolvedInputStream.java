@@ -17,16 +17,20 @@ import java.util.Deque;
 import java.util.LinkedList;
 
 // TODO not for UTF-16
-public class TransformedLinksInputStream extends InputStream {
+public class CrossLinksResolvedInputStream extends InputStream {
 
     /** The String ' class=' as bytes. */
-    private static final byte[] CLASS_IS =
-        " class=".getBytes(); //$NON-NLS-1$
+    private static final byte[] CLASS_IS = " class=".getBytes(); //$NON-NLS-1$
 
     private boolean endOfIn = false;
     private boolean awaitStartOfElement = true;
 
-    private enum ReaderStatus {AWAIT_ATTRIBUTE, READING_HREF, READING_CLASS, READING_MISC, AWAIT_EQUALS_SIGN, AWAIT_VALUE }
+    private enum ReaderStatus {AWAIT_ATTRIBUTE,
+                               READING_HREF,
+                               READING_CLASS,
+                               READING_MISC,
+                               AWAIT_EQUALS_SIGN,
+                               AWAIT_VALUE }
 
     private Deque<Byte> buffer = new LinkedList<Byte>();
 
@@ -38,7 +42,7 @@ public class TransformedLinksInputStream extends InputStream {
 
     private final byte[] notFoundClassName;
 
-    public TransformedLinksInputStream(InputStream in, IHrefResolver hrefResolver) {
+    public CrossLinksResolvedInputStream(InputStream in, IHrefResolver hrefResolver) {
         this.in = in;
         this.hrefResolver = hrefResolver;
         this.notFoundClassName = computeClassName(hrefResolver);
