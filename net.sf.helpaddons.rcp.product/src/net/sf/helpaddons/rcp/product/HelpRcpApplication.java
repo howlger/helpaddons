@@ -8,14 +8,15 @@
  * Contributors:
  *     Holger Voormann - initial API and implementation
  *******************************************************************************/
-package net.sf.helpaddons.rcp.product.internal;
+package net.sf.helpaddons.rcp.product;
 
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URLEncoder;
 
-import org.eclipse.core.internal.runtime.InternalPlatform;
+import net.sf.helpaddons.rcp.product.internal.RcpPlugin;
+
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.equinox.app.IApplication;
 import org.eclipse.equinox.app.IApplicationContext;
@@ -89,7 +90,7 @@ public class HelpRcpApplication implements IApplication {
         }
     }
 
-    public synchronized Object start(IApplicationContext context)
+    public synchronized Object start(final IApplicationContext context)
             throws Exception {
 //        Display.setAppName(context.getBrandingName());
 
@@ -125,7 +126,7 @@ public class HelpRcpApplication implements IApplication {
                             HelpDisplay helpDisplay = BaseHelpSystem.getHelpDisplay();
                             helpDisplay.displaySearch("searchWord=" + query,
                                                       "",
-                                                      false);
+                                                      isExternalBrowserMode());
                         };
                     });
                 }
@@ -134,11 +135,10 @@ public class HelpRcpApplication implements IApplication {
 
         display.asyncExec(new Runnable() {
             public void run() {
-                InternalPlatform.getDefault().endSplash();
 
                 // open help window
                 HelpDisplay helpDisplay = BaseHelpSystem.getHelpDisplay();
-                helpDisplay.displayHelp(false);
+                helpDisplay.displayHelp(isExternalBrowserMode());
 
                 // instead of helpDisplay.displayHelp(false) the following
                 // can be used to display the window and run a query:
@@ -147,7 +147,7 @@ public class HelpRcpApplication implements IApplication {
                 // exiting the application by closing the help window
                 Shell[] allShells = Display.getCurrent().getShells();
                 if (allShells.length != 1) {
-                    throw new RuntimeException("No or more than one shells found");
+                    throw new RuntimeException("No or more than one shell found");
                 }
 
                 allShells[0].addListener(SWT.Close, new Listener() {
@@ -155,6 +155,10 @@ public class HelpRcpApplication implements IApplication {
                         stopHelp();
                     }
                 });
+
+                // end splash (in the org.eclipse.core.runtime.applications
+                // extension thread must be set to "main") etc.
+                context.applicationRunning();
 
             }
         });
@@ -170,7 +174,18 @@ public class HelpRcpApplication implements IApplication {
 
         // wait until start has finished
         synchronized(this) {};
-   }
+    }
+
+    /**
+     * Override this method if the web browser of the operating system should be
+     * used instead of running the application in a separate window.
+     *
+     * @return {@code true} to use the system web browser;
+     *         {@code false} to run as an application with its own window
+     */
+    protected boolean isExternalBrowserMode() {
+        return false;
+    }
 
     /**
      * Causes help service to stop and exit

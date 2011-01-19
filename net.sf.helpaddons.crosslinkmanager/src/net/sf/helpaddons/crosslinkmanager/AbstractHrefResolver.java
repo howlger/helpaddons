@@ -29,6 +29,11 @@ public abstract class AbstractHrefResolver implements IHrefResolver {
 
     final public String resolve(String targetHref) {
         IPath absolutePath = sourceDir.append(targetHref);
+
+        if ("..".equals(absolutePath.segment(0))) {
+            return targetHref;
+        }
+
         String absolute = absolutePath.toString();
         if (computeExistsInSourceBundle(absolute)) return targetHref;
 
