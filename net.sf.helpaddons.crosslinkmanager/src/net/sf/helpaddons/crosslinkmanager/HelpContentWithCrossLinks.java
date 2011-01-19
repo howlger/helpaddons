@@ -23,8 +23,8 @@ public class HelpContentWithCrossLinks implements IHelpContentProducer {
 
         InputStream original =
             IStaticHelpContent.DEFAULT.getInputStream(pluginID,
-                                                             href,
-                                                             locale);
+                                                      href,
+                                                      locale);
 
         // transform (X)HTML files only...
         if (hasHtmlFileExtension(href)) {

@@ -28,7 +28,7 @@
             thread="main"
             visible="true">
          <run
-               class="net.sf.helpaddons.rcp.product.internal.HelpRcpApplication">
+               class="net.sf.helpaddons.rcp.product.HelpRcpApplication">
          </run>
       </application>
    </extension>
