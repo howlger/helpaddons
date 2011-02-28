@@ -1,0 +1,339 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ======================================================================
+
+     Copyright (c) 2011 Holger Voormann <http://agilantis.de>
+     All rights reserved. This program and the accompanying materials
+     are made available under the terms of the Eclipse Public License v1.0
+     which accompanies this distribution, and is available at
+     http://www.eclipse.org/legal/epl-v10.html
+
+     ======================================================================
+
+     Eclipse RCP Build
+
+     Requires:
+     * Eclipse + Delta Pack (see ${target.platform.dir})
+     * InstallJammer (see ${intalljammer.dir})
+
+     Creates in subdirectory "out" (see ${out.dir}):
+     * Executable Windows installer (*.exe)
+
+     Todo:
+     * Linux installation package (*.noarch.rpm)
+
+     ====================================================================== -->
+<project default="build-all">
+
+    <!-- The directory of this Ant file
+         (to address resources independently from base directory). -->
+    <dirname property="rcp.build.ant.dir" file="${ant.file}"/>
+
+
+    <!-- ==================================================================
+          To customize your product edit (or overwrite them in your own Ant
+          file and call the default target) the following properties:        -->
+
+    <!-- Location of the target platform: Eclipse Classic plus Delta Pack
+         (Download at http://download.eclipse.org/eclipse/downloads/) -->
+    <property name="target.platform.dir"
+              location="C:/Program Files/Eclipse3.6.1Delta"/>
+
+    <!-- Location of InstallJammer: an open source install builder
+         (see http://www.installjammer.com/) -->
+    <property name="intalljammer.dir"
+              location="C:/Program Files/InstallJammer"/>
+
+    <property name="workspace.dir" location="${rcp.build.ant.dir}/.."/>
+
+    <!-- The product configuration which specifies the name of the product and
+         the launcher name -->
+    <property name="product.config"
+              value="/net.sf.helpaddons.rcp.product/help-rcp.product"/>
+
+    <!-- If the version is not specified the version given it the product
+         configuration is used (see above)
+    <property name="product.version" value="1.2.3.Label"/-->
+
+    <!-- Short description of the product which is shown on the first setup
+         dialog wizard page. -->
+    <property name="product.description"
+              value="Stand-alone Eclipse help viewer to browse offline the documentation"/>
+
+    <!-- The URL of the product which is shown in the installer as a link;
+         empty string (value="") to hide this link -->
+    <property name="product.url" value="http://helpaddons.sf.net"/>
+
+    <property name="product.changelog" value=""/>
+
+    <property name="product.features"
+              value="net.sf.helpaddons.rcp.feature/**"/>
+
+    <property name="product.plugins"
+              value="net.sf.helpaddons.rcp.product/**,
+                     net.sf.helpaddons.crosslinkmanager/**"/>
+
+    <property name="product.force.version"
+              value="${product.features}, ${product.plugins}"/>
+
+    <property name="product.win.include.dir" value=""/>
+
+    <property name="installer.fixed.destination" value="No"/>
+    <property name="installer.destination.dir"
+              value="&lt;%PROGRAM_FILES%>/&lt;%AppName%> &lt;%Version%>"/>
+    <property name="installer.program.folder"
+              value="&lt;%AppName%> &lt;%Version%>"/>
+
+    <!-- 164 x 314 pixel images which is shown at the left on the first
+         setup dialog wizard page;
+         default: ${intalljammer.dir}/Images/Modern/SetupModern01.gif -->
+    <property name="installer.image.left"
+              location="${rcp.build.ant.dir}/installer-border-left.gif"/>
+
+    <!-- 55 x 55 pixel image which is shown in right upper corner on the setup
+         dialog wizard pages but the first page;
+         default: ${intalljammer.dir}/Images/Modern/Small/SetupModernSmall01.gif -->
+    <property name="installer.image.top"
+              location="${rcp.build.ant.dir}/installer-top-right.gif"/>
+
+    <!-- ================================================================== -->
+
+
+    <!-- Temp and output directories -->
+    <property name="temp.dir" location="${rcp.build.ant.dir}/temp"/>
+    <property name="out.dir" location="${rcp.build.ant.dir}/out"/>
+
+
+    <!-- =====================================================
+         Build All: PDE Build + Create Windows Installer
+         ===================================================== -->
+    <target name="build-all" depends="pde-build, win-installer"/>
+
+
+    <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - -
+         Init: Clean output and temp directories
+         - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+    <target name="init">
+
+        <!-- start from scratch -->
+        <delete dir="${temp.dir}"/>
+        <mkdir dir="${temp.dir}/null"/>
+        <mkdir dir="${temp.dir}/pde-build/plugins"/>
+        <mkdir dir="${temp.dir}/pde-build/features"/>
+        <mkdir dir="${temp.dir}/pde-build/buildConfiguration"/>
+        <delete dir="${out.dir}"/>
+
+        <!-- compute product version -->
+        <loadfile property="product.version"
+                  srcfile="${workspace.dir}${product.config}">
+            <filterchain>
+
+                <!-- e.g. <product name="My RCP Application"... -->
+                <replaceregex byline="no"
+                    pattern="^[\s\S]*&lt;product\s+[^>]*version\s*=\s*&quot;([^&quot;]+)&quot;[\s\S]*$"
+                    replace="\1"/>
+
+                <!-- XML to String -->
+                <replacestring from="&amp;lt;" to="&lt;"/>
+                <replacestring from="&amp;gt;" to="&gt;"/>
+                <replacestring from="&amp;quot;" to="&quot;"/>
+                <replacestring from="&amp;amp;" to="&amp;"/>
+
+            </filterchain>
+        </loadfile>
+        <condition property="invalide.product.version">
+            <not><matches string="${product.version}"
+                          pattern="^([0-9]+(\.[0-9]+(\.[0-9]+(\.[^\n\r])?)?)?){1,140}$"
+                          multiline="yes"/></not>
+        </condition>
+        <fail if="invalide.product.version"
+            message="Invalid version number: '${product.version}'."/>
+
+        <!-- compute product name -->
+        <loadfile property="product.name"
+                  srcfile="${workspace.dir}${product.config}">
+            <filterchain>
+
+                <!-- e.g. <product name="My RCP Application"... -->
+                <replaceregex byline="no"
+                    pattern="^[\s\S]*&lt;product\s+[^>]*name\s*=\s*&quot;([^&quot;]+)&quot;[\s\S]*$"
+                    replace="\1"/>
+
+                <!-- XML to String -->
+                <replacestring from="&amp;lt;" to="&lt;"/>
+                <replacestring from="&amp;gt;" to="&gt;"/>
+                <replacestring from="&amp;quot;" to="&quot;"/>
+                <replacestring from="&amp;amp;" to="&amp;"/>
+
+            </filterchain>
+        </loadfile>
+        <condition property="missing.product.name">
+            <not><matches string="${product.name}"
+                          pattern="^[^\n\r]{1,140}$"
+                          multiline="yes"/></not>
+        </condition>
+        <fail if="missing.product.name"
+            message="In product '${product.config}' the name must be set and
+                     its length must be equal or less than 140 characters."/>
+
+        <!-- compute launcher name -->
+        <loadfile property="launcher.name"
+                  srcfile="${workspace.dir}${product.config}">
+            <filterchain>
+
+                <!-- e.g. <launcher name="MyRcpApp"> -->
+                <replaceregex byline="no"
+                    pattern="^[\s\S]*&lt;launcher\s+[^>]*name\s*=\s*&quot;([^&quot;]+)&quot;[\s\S]*$"
+                    replace="\1"/>
+
+                <!-- XML to String -->
+                <replacestring from="&amp;lt;" to="&lt;"/>
+                <replacestring from="&amp;gt;" to="&gt;"/>
+                <replacestring from="&amp;quot;" to="&quot;"/>
+                <replacestring from="&amp;amp;" to="&amp;"/>
+
+            </filterchain>
+        </loadfile>
+        <condition property="missing.launcher.name">
+            <not><matches string="${launcher.name}"
+                          pattern="^[^\n\r]{1,140}$"
+                          multiline="yes"/></not>
+        </condition>
+        <fail if="missing.launcher.name"
+            message="In product '${product.config}' the 'Launcher Name must be set
+                     and its length must be equal or less than 140 characters."/>
+
+    </target>
+
+
+    <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - -
+         Eclipse PDE Build creates the RCP application as ZIP
+         - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+    <target name="pde-build" depends="init">
+
+        <!-- plug-ins and features to build -->
+        <copy todir="${temp.dir}/pde-build/plugins">
+            <fileset dir="${workspace.dir}" includes="${product.plugins}"/>
+        </copy>
+        <copy todir="${temp.dir}/pde-build/features">
+            <fileset dir="${workspace.dir}" includes="${product.features}"/>
+        </copy>
+
+        <!-- force/overwrite version number -->
+        <replaceregexp byline="yes"
+                       match="(^Bundle-Version:\s*)([^\s\n\r]+)([\s\n\r]?(.*)?$)"
+                       replace="\1${product.version}\3"
+                       flags="g">
+            <fileset dir="${temp.dir}/pde-build/plugins"
+                includes="${product.force.version}">
+                <filename name="*/META-INF/MANIFEST.MF"/>
+            </fileset>
+        </replaceregexp>
+        <replaceregexp byline="no"
+                       match="(&lt;feature\s+[^>]*version\s*=\s*&quot;)([^&quot;]+)(&quot;)"
+                       replace="\1${product.version}\3"
+                       flags="g">
+            <fileset dir="${temp.dir}/pde-build/features"
+                includes="${product.force.version}">
+                <filename name="*/feature.xml"/>
+            </fileset>
+        </replaceregexp>
+
+        <!-- compute PDE plug-in directory which contains the Ant build file
+             and a default build.properties file (instead of the
+             "build.properties" the Ant build file is called with the properties
+             as arguments: see below) -->
+        <pathconvert property="pde.build.plugin.dir">
+            <path>
+                <dirset dir="${target.platform.dir}"
+                         includes="plugins/org.eclipse.pde.build*"/>
+            </path>
+        </pathconvert>
+        <echo level="info"
+              message="PDE build directory: ${pde.build.plugin.dir}"/>
+
+        <!-- default "build.properties" file -->
+        <copy file="${pde.build.plugin.dir}/templates/headless-build/build.properties"
+              todir="${temp.dir}/pde-build/buildConfiguration"/>
+
+        <!-- build product by PDE -->
+        <subant inheritall="no">
+            <fileset file="${pde.build.plugin.dir}/scripts/productBuild/productBuild.xml"/>
+            <property name="builder"
+                      location="${temp.dir}/pde-build/buildConfiguration"/>
+            <property name="baseLocation"
+                      location="${target.platform.dir}"/>
+            <property name="buildDirectory"
+                      location="${temp.dir}/pde-build"/>
+            <property name="configs"
+                      value="win32, win32, x86 &amp; linux, gtk, x86"/>
+            <property name="product" value="${product.config}"/>
+            <property name="archivePrefix" value="${launcher.name}"/>
+            <property name="javacSource" value="1.5"/>
+            <property name="javacTarget" value="1.5"/>
+        </subant>
+
+        <!-- remove: features/**, .eclipseproduct
+             add: ${product.win.include} -->
+        <unzip
+            src="${temp.dir}/pde-build/I.TestBuild/TestBuild-win32.win32.x86.zip"
+            dest="${temp.dir}">
+            <patternset excludes="*/features/**, */.eclipseproduct"/>
+        </unzip>
+        <condition property="win.include.dir"
+                   value="${temp.dir}/null"
+                   else="${product.win.include.dir}">
+            <equals arg1="${product.win.include.dir}" arg2=""/>
+        </condition>
+        <copy todir="${temp.dir}/${launcher.name}">
+            <fileset dir="${win.include.dir}"/>
+        </copy>
+
+    </target>
+
+
+    <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - -
+         Windows setup wizard by InstallJammer
+         - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+    <target name="win-installer">
+
+        <!-- windows installer by InstallJammer -->
+        <condition property="product.changelog.text"
+                   value="${product.changelog}"
+                   else="">
+            <isset property="product.changelog"/>
+        </condition>
+        <copy todir="${temp.dir}">
+            <fileset dir="${rcp.build.ant.dir}/InstallJammer_config"/>
+            <filterchain>
+                <replacestring from="&lt;%directory of files to install%>"
+                               to="${temp.dir}/${launcher.name}"/>
+                <replacestring from="&lt;%Changelog%>"
+                               to="${product.changelog}"/>
+            </filterchain>
+        </copy>
+        <exec executable="${intalljammer.dir}/installjammer.com">
+            <arg line="-DAppName       &quot;${product.name}&quot;"/>
+            <arg line="-DAppFileName   &quot;${launcher.name}&quot;"/>
+            <arg line="-DWebSite       &quot;${product.url}&quot;"/>
+            <arg line="-DVersion       &quot;${product.version}&quot;"/>
+            <arg line="-DApplicationID &quot;${launcher.name}_${product.version}&quot;"/>
+            <arg line="-DPackageDescription &quot;${product.description}&quot;"/>
+            <arg line="-DInstallDir    &quot;${installer.destination.dir}&quot;"/>
+            <arg line="-DFixedDestination   &quot;${installer.fixed.destination}&quot;"/>
+            <arg line="-DProgramFolderName  &quot;${installer.program.folder}&quot;"/>
+            <arg line="-DImage         &quot;${installer.image.left}&quot;"/>
+            <arg line="-DIcon          &quot;${installer.image.top}&quot;"/>
+            <arg line="--build-dir     &quot;${temp.dir}/installer&quot;"/>
+            <arg line="--output-dir    &quot;${out.dir}&quot;"/>
+            <arg line="--build         &quot;${temp.dir}/win.mpi&quot;"/>
+        </exec>
+
+    </target>
+
+
+</project>
+<!--
+TODO:
+- Create splash BMP with version number
+- include JRE
+-->
