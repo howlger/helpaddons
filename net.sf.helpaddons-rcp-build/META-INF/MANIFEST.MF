@@ -1,0 +1,8 @@
+Manifest-Version: 1.0
+Bundle-ManifestVersion: 2
+Bundle-Name: DrawString
+Bundle-SymbolicName: net.sf.helpaddons.drawString
+Bundle-Version: 1.0.0
+Require-Bundle: org.apache.ant
+Bundle-ActivationPolicy: lazy
+Bundle-RequiredExecutionEnvironment: JavaSE-1.6
