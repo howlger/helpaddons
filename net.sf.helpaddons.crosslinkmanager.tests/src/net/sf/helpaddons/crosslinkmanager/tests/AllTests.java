@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2010 Holger Voormann and others.
+ * Copyright (c) 2010, 2011 Holger Voormann and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -17,8 +17,8 @@ import org.junit.runners.Suite.SuiteClasses;
 @RunWith(Suite.class)
 @SuiteClasses({ AbstractHrefResolverTest.class,
                 CrossLinksResolvedInputStreamTest.class,
-                PoolRegistryTest.class,
-                HelpContentWithCrossLinksTest.class})
+                HelpContentWithCrossLinksTest.class,
+                PoolRegistryTest.class})
 public class AllTests {
 
 }
