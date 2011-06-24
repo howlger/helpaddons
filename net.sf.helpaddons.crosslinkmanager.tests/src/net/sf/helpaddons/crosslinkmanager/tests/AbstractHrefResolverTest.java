@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2010 Holger Voormann and others.
+ * Copyright (c) 2010, 2011 Holger Voormann and others.
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * which accompanies this distribution, and is available at
@@ -62,17 +62,40 @@ public class AbstractHrefResolverTest {
         assertResolved("../../../pool/sub/dir2/target.htm", "sub/dir1/page.htm", "../dir2/target.htm");
         assertResolved(null, "dir/page.htm", "../nirvana.htm");
 
-        // TODO if source in subdir -> ../404.htm
-
-
         // TODO check if fragments can be included in help content producer calls?
+    }
+
+    @Test
+    public void testExplicitCrossLinks() throws Exception {
+        assertResolved("/help/topic/other.plugin/topic.htm",
+                       "dir/page.htm",
+                       "/help/topic/other.plugin/topic.htm");
+        assertResolved("../other.plugin/topic.htm",
+                       "page.htm",
+                       "../other.plugin/topic.htm");
+        assertResolved("../../other.plugin/topic.htm",
+                       "dir/page.htm",
+                       "../../other.plugin/topic.htm");
+
+        // '\' can be used instead of '/'
+        assertResolved("\\help\\topic\\other.plugin\\topic.htm",
+                       "dir/page.htm",
+                       "\\help\\topic\\other.plugin\\topic.htm");
+        assertResolved("..\\other.plugin\\topic.htm",
+                       "page.htm",
+                       "..\\other.plugin\\topic.htm");
+        assertResolved("/help\\topic/other.plugin\\topic.htm",
+                       "dir/page.htm",
+                       "/help\\topic/other.plugin\\topic.htm");
+        assertResolved("\\help/topic\\other.plugin/topic.htm",
+                       "dir/page.htm",
+                       "\\help/topic\\other.plugin/topic.htm");
     }
 
     @Test
     public void testGetNotFoundHref() throws Exception {
         assertErrorHrefResolved("errors/404.htm", "nirvana.htm");
         assertErrorHrefResolved("../errors/404.htm", "dir/nirvana.htm");
-
     }
 
     private static void assertResolved(String expectedHref,

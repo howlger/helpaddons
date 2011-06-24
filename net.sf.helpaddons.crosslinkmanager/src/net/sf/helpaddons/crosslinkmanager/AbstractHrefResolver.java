@@ -28,6 +28,12 @@ public abstract class AbstractHrefResolver implements IHrefResolver {
     }
 
     final public String resolve(String targetHref) {
+        if (   targetHref.startsWith("/")
+            || targetHref.startsWith("\\"))
+            return targetHref.replace('\\', '/').startsWith("/help/topic/")
+                   ? targetHref
+                   : null;
+
         IPath absolutePath = sourceDir.append(targetHref);
 
         if ("..".equals(absolutePath.segment(0))) {
