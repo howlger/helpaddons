@@ -51,8 +51,8 @@ public abstract class AbstractHrefResolver implements IHrefResolver {
         return target.makeRelativeTo(source).toString();
     }
 
-    final public String getNotFoundHref(String classPrefix) {
-        IPath absolute = new Path(getNotFoundHtmlFile(classPrefix));
+    final public String getNotFoundHref(String hrefPrefix) {
+        IPath absolute = new Path(getNotFoundHtmlFile(hrefPrefix));
         return absolute.makeRelativeTo(sourceDir).toString();
     }
 
@@ -72,16 +72,16 @@ public abstract class AbstractHrefResolver implements IHrefResolver {
     protected abstract String computeTargetBundle(String href);
 
     /**
-     * @param classPrefix the HTML cross-link "class" attribute value prefix
-     *                    (separated by '<' from the rest, e.g.
-     *                    {@code <!--a href='topic.htm' class='prefix<class'-->})
-     *                    or {@code null} if HTML cross-link doesn't contain
-     *                    such a class prefix
+     * @param hrefPrefix the HTML cross-link "href" attribute value prefix
+     *                   (separated by '<' from the rest, e.g.
+     *                   {@code <!--a ... href='prefix<dir/topic.htm' ... -->})
+     *                   or {@code null} if HTML cross-link doesn't contain
+     *                   such a prefix
      * @return the absolute link to the HTML error page which is used as link
      *         target instead of the original target if the target HTML file
      *         does not exist in the pool, e.g. {@code "errors/404.htm"}
      * @see IHrefResolver#getNotFoundHref()
      */
-    protected abstract String getNotFoundHtmlFile(String classPrefix);
+    protected abstract String getNotFoundHtmlFile(String hrefPrefix);
 
 }
