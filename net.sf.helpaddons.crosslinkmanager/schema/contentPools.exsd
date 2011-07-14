@@ -18,7 +18,10 @@
       </annotation>
       <complexType>
          <sequence minOccurs="1" maxOccurs="unbounded">
-            <element ref="pool"/>
+            <choice>
+               <element ref="pool"/>
+               <element ref="errorPage"/>
+            </choice>
          </sequence>
          <attribute name="point" type="string" use="required">
             <annotation>
@@ -48,6 +51,11 @@
    </element>
 
    <element name="pool">
+      <annotation>
+         <documentation>
+            The help content pool to contribute to.
+         </documentation>
+      </annotation>
       <complexType>
          <attribute name="id" type="string">
             <annotation>
@@ -60,6 +68,30 @@
             <annotation>
                <documentation>
                   Comma separated ordered list of bundles (bundle symbolic names) which should be used first when searching for a link target which exists in more than one pool bundle. Specified bundles which are not in the same pool will be ignored.
+               </documentation>
+            </annotation>
+         </attribute>
+      </complexType>
+   </element>
+
+   <element name="errorPage">
+      <annotation>
+         <documentation>
+            An error page that is displayed if the &quot;class&quot; attribute of the cross-link starts with the specified prefix.
+         </documentation>
+      </annotation>
+      <complexType>
+         <attribute name="classPrefix" type="string">
+            <annotation>
+               <documentation>
+                  Condition when to display this error page: the &quot;class&quot; attribute of the cross-link must starts with this string and followed by &quot;&lt;&quot;, e.g. &lt;!--a href=&quot;...&quot; class=&quot;prefix&lt;class&quot;--&gt;
+               </documentation>
+            </annotation>
+         </attribute>
+         <attribute name="href" type="string" use="required">
+            <annotation>
+               <documentation>
+                  The error page which is displayed when clicking on a cross-link whose target does not exists, e.g. &quot;path/missing_plugin_XYZ.htm&quot;.
                </documentation>
             </annotation>
          </attribute>
@@ -81,7 +113,6 @@
             bundlesToPrefer=&quot;net.sf.helpaddons.bundle2, net.sf.helpaddons.bundle3&quot;/&gt;
   &lt;/extension&gt;&lt;/pre&gt;
 &lt;/p&gt;
-
       </documentation>
    </annotation>
 

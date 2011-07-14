@@ -56,6 +56,16 @@ public class CrossLinksResolvedInputStreamTest {
                                 "...<!--a class='dummy' href='" + NOT_FOUND + "'-->...");
         assertTransformedEquals("...<a href='error404.htm' class='error404'>...",
                                 "...<!--a href='" + NOT_FOUND + "' class='dummy'-->...");
+
+        assertTransformedEquals(
+                "<a href='error404.htm' class='error404'>",
+                "<!--a href='" + NOT_FOUND + "'-->");
+        assertTransformedEquals(
+                "<a href='error404.htm' class='error404'>",
+                "<!--a href='" + NOT_FOUND + "' class='dummy'-->");
+        assertTransformedEquals(
+                "<a class='error404' href='error404.htm'>",
+                "<!--a class='dummy' href='" + NOT_FOUND + "'-->");
     }
 
     @Test
@@ -105,6 +115,24 @@ public class CrossLinksResolvedInputStreamTest {
     }
 
     @Test
+    public void testClassPrefix() throws Exception {
+//        assertTransformedEquals(
+//                "<a href='-T-' class='abc'>text</a>",
+//                "<!--a href='t' class='prefix<abc'-->text<!--/a-->");
+//        assertTransformedEquals(
+//                "<a class='abc' href='-T-'>text</a>",
+//                "<!--a class='prefix<abc' href='t'-->text<!--/a-->");
+        assertTransformedEquals(
+                "<a href='myError404.htm' class='error404'>text</a>",
+                "<!--a href='" + NOT_FOUND + "' class='my<abc'-->text<!--/a-->");
+//        assertTransformedEquals(
+//                "<a class='error404' href='myError404.htm'>text</a>",
+//                "<!--a class='my<abc' href='" + NOT_FOUND + "'-->text<!--/a-->");
+
+
+    }
+
+    @Test
     public void testBufferOverflow() throws Exception {
         char[] chars9000 = new char[9000];
         Arrays.fill(chars9000, 'o');
@@ -135,8 +163,10 @@ public class CrossLinksResolvedInputStreamTest {
             }
 
             @Override
-            public String getNotFoundHref() {
-                return "error404.htm";
+            public String getNotFoundHref(String classPrefix) {
+                return "my".equals(classPrefix)
+                        ? "myError404.htm"
+                        : "error404.htm";
             }
 
             @Override

@@ -33,19 +33,13 @@ public class CrossLinkManagerPlugin implements BundleActivator, IRegistryChangeL
     private static final String CONTENT_POOLS_EXTENSION_POINT_ID =
         "contentPools";  //$NON-NLS-1$
 
+    /** The singleton instance of this class representing plug-in/bundle. */
     private static CrossLinkManagerPlugin plugin;
 
     private final Set<IExtension> contentPoolsExtensions =
         new HashSet<IExtension>();
 
     private final PoolRegistry poolRegistry = new PoolRegistry();
-
-    /**
-     * @return the singleton instance of this class representing plug-in
-     */
-    private static CrossLinkManagerPlugin getDefault() {
-        return plugin;
-    }
 
     public void start(BundleContext bundleContext) throws Exception {
         if (plugin != null) {
@@ -54,9 +48,8 @@ public class CrossLinkManagerPlugin implements BundleActivator, IRegistryChangeL
         plugin = this;
         IExtensionRegistry reg = Platform.getExtensionRegistry();
         IExtensionPoint pt =
-            reg.getExtensionPoint(  ID
-                                  + "." //$NON-NLS-1$
-                                  + CONTENT_POOLS_EXTENSION_POINT_ID);
+            reg.getExtensionPoint(ID,
+                                  CONTENT_POOLS_EXTENSION_POINT_ID);
         IExtension[] allExtensions = pt.getExtensions();
         for (IExtension ext : allExtensions) {
             contentPoolsExtensions.add(ext);
@@ -98,9 +91,9 @@ public class CrossLinkManagerPlugin implements BundleActivator, IRegistryChangeL
     public static IHrefResolver createHrefResolver(String sourceBundle,
                                                    String sourceHref,
                                                    Locale locale) {
-        return getDefault().poolRegistry.createHrefResolver(sourceBundle,
-                                                            sourceHref,
-                                                            locale);
+        return plugin.poolRegistry.createHrefResolver(sourceBundle,
+                                                      sourceHref,
+                                                      locale);
     }
 
 }

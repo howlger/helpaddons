@@ -41,6 +41,7 @@ public class PoolRegistryTest {
         private String bundle;
 
         private final List<PoolElement> pools = new ArrayList<PoolElement>();
+        private final List<ErrorPageElement> errorPages = new ArrayList<ErrorPageElement>();
 
         public PoolExtensionBuilder bundle(String bundleSymbolicName) {
             addPools();
@@ -55,7 +56,19 @@ public class PoolRegistryTest {
         public PoolExtensionBuilder pool(String id, String bundlesToPrefer) {
             if (bundle == null)
                 throw new IllegalStateException("pool() must follow bundle()");
-            pools.add(new PoolElement(id, bundlesToPrefer));
+            pools.add(new PoolElement(id,
+                                      bundlesToPrefer));
+            return this;
+        }
+
+        public PoolExtensionBuilder errorPage(String href) {
+            return errorPage(null, href);
+        }
+
+        public PoolExtensionBuilder errorPage(String classPrefix, String href) {
+            if (bundle == null)
+                throw new IllegalStateException("errorPage() must follow bundle()");
+            errorPages.add(new ErrorPageElement(classPrefix, href));
             return this;
         }
 
@@ -69,8 +82,10 @@ public class PoolRegistryTest {
             if (bundle != null) {
                 extensions.add(
                     new PoolExtension(bundle,
-                                      new ArrayList<PoolElement>(pools)));
+                                      new ArrayList<PoolElement>(pools),
+                                      new ArrayList<ErrorPageElement>(errorPages)));
                 pools.clear();
+                errorPages.clear();
             }
         }
     }
@@ -79,15 +94,23 @@ public class PoolRegistryTest {
 
         private final String contributor;
         private final List<PoolElement> pools;
+        private final List<ErrorPageElement> errorPages;
 
-        public PoolExtension(String contributor, List<PoolElement> pools) {
+        public PoolExtension(String contributor,
+                             List<PoolElement> pools,
+                             List<ErrorPageElement> errorPages) {
             this.contributor = contributor;
             this.pools = pools;
+            this.errorPages = errorPages;
         }
 
         @Override
         public IConfigurationElement[] getConfigurationElements() {
-            return pools.toArray(new IConfigurationElement[pools.size()]);
+            List<IConfigurationElement> result =
+                new ArrayList<IConfigurationElement>();
+            result.addAll(pools);
+            result.addAll(errorPages);
+            return result.toArray(new IConfigurationElement[result.size()]);
         }
 
         @Override
@@ -148,28 +171,11 @@ public class PoolRegistryTest {
 
     }
 
-    private static class PoolElement implements IConfigurationElement {
-
-        private final String id;
-
-        private final String bundlesToPrefer;
-
-        public PoolElement(String id, String bundlesToPrefer) {
-            if (id == null) throw new IllegalArgumentException("id must not be null");
-            this.id = id;
-            this.bundlesToPrefer = bundlesToPrefer;
-        }
+    private static abstract class AbstractElement implements IConfigurationElement {
 
         @Override
         public Object createExecutableExtension(String propertyName) {
             throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public String getAttribute(String name) {
-            if (name.equals("id")) return id;
-            if (name.equals("bundlesToPrefer")) return bundlesToPrefer;
-            return null;
         }
 
         @Override
@@ -180,13 +186,6 @@ public class PoolRegistryTest {
         @Override
         public String getAttributeAsIs(String name) {
             return getAttribute(name);
-        }
-
-        @Override
-        public String[] getAttributeNames() {
-            return bundlesToPrefer == null
-                   ? new String[] {"id"}
-                   : new String[] {"id", "bundlesToPrefer"};
         }
 
         @Override
@@ -202,11 +201,6 @@ public class PoolRegistryTest {
         @Override
         public IExtension getDeclaringExtension() {
             throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public String getName() {
-            return "pool";
         }
 
         @Override
@@ -247,6 +241,73 @@ public class PoolRegistryTest {
         @Override
         public boolean isValid() {
             return true;
+        }
+
+    }
+
+    private static class PoolElement extends AbstractElement {
+
+        private final String id;
+        private final String bundlesToPrefer;
+
+        public PoolElement(String id,
+                           String bundlesToPrefer) {
+            if (id == null) throw new IllegalArgumentException("id must not be null");
+            this.id = id;
+            this.bundlesToPrefer = bundlesToPrefer;
+        }
+
+        @Override
+        public String getAttribute(String name) {
+            if (name.equals("id")) return id;
+            if (name.equals("bundlesToPrefer")) return bundlesToPrefer;
+            return null;
+        }
+
+        @Override
+        public String[] getAttributeNames() {
+            return bundlesToPrefer == null
+                   ? new String[] {"id"}
+                   : new String[] {"id", "bundlesToPrefer"};
+        }
+
+        @Override
+        public String getName() {
+            return "pool";
+        }
+
+    }
+
+    private static class ErrorPageElement extends AbstractElement {
+
+        private final String classPrefix;
+
+        private final String href;
+
+        public ErrorPageElement(String classPrefix, String href) {
+            if (href == null)
+                throw new IllegalArgumentException("href must not be null");
+            this.classPrefix = classPrefix;
+            this.href = href;
+        }
+
+        @Override
+        public String getAttribute(String name) {
+            if (name.equals("classPrefix")) return classPrefix;
+            if (name.equals("href")) return href;
+            return null;
+        }
+
+        @Override
+        public String[] getAttributeNames() {
+            return classPrefix == null
+                   ? new String[] {"href"}
+                   : new String[] {"classPrefix", "href"};
+        }
+
+        @Override
+        public String getName() {
+            return "errorPage";
         }
 
     }
@@ -348,6 +409,33 @@ public class PoolRegistryTest {
                              inAllWithoutD47andD11);
         assertResolvedEquals("../d42.z/in_d42.z", "in_d42.z");
         assertResolvedEquals(null, "nowhere");
+    }
+
+    @Test
+    public void testDefaultErrorPage() {
+
+        // default
+        builder.bundle("doc.a").pool("z");
+        initResolverAndRegistry("doc.a", "topic.htm");
+        assertEquals("error404.htm", resolver.getNotFoundHref(null));
+
+        // set default error page
+        builder.bundle("doc.a").pool("z").errorPage("path/to/myErrorPage.htm");
+        initResolverAndRegistry("doc.a", "topic.htm");
+        assertEquals("path/to/myErrorPage.htm", resolver.getNotFoundHref(null));
+
+    }
+
+    @Test
+    public void testSpecificErrorPage() {
+        builder.bundle("doc.a").pool("z").errorPage("error.htm")
+                               .errorPage("my", "myError.htm")
+                               .errorPage("my2", "myError2.htm")
+                               ;
+        initResolverAndRegistry("doc.a", "topic.htm");
+        assertEquals("error.htm", resolver.getNotFoundHref(null));
+        assertEquals("myError.htm", resolver.getNotFoundHref("my"));
+    assertEquals("myError2.htm", resolver.getNotFoundHref("my2"));
     }
 
     private void initResolverAndRegistry(String sourceBundle,

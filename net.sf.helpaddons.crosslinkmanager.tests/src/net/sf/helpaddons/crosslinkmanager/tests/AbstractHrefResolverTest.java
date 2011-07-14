@@ -37,7 +37,7 @@ public class AbstractHrefResolverTest {
         }
 
         @Override
-        protected String getNotFoundHtmlFile() {
+        protected String getNotFoundHtmlFile(String classPrefix) {
             return "errors/404.htm";
         }
 
@@ -108,7 +108,7 @@ public class AbstractHrefResolverTest {
     private static void assertErrorHrefResolved(String expectedHref,
                                                 String sourceHref) {
         IHrefResolver dummy = new HrefResolverDummy(sourceHref);
-        assertEquals(expectedHref, dummy.getNotFoundHref());
+        assertEquals(expectedHref, dummy.getNotFoundHref(null));
     }
 
 }

@@ -20,11 +20,16 @@ public interface IHrefResolver {
     String resolve(String href);
 
     /**
+     * @param classPrefix the HTML cross-link "class" attribute value prefix
+     *                    (separated by '<' from the rest, e.g.
+     *                    {@code <!--a href='topic.htm' class='prefix<class'-->})
+     *                    or {@code null} if HTML cross-link doesn't contain
+     *                    such a class prefix
      * @return the relative link to the HTML error page which is used as link
      *         target instead of the original target if the target HTML file
      *         does not exist in the pool, e.g. {@code "../errors/404.htm"}
      */
-    String getNotFoundHref();
+    String getNotFoundHref(String classPrefix);
 
     /**
      * @return the HTML class name of links without an existing link target,
