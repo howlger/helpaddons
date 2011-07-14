@@ -17,6 +17,12 @@ public class PoolRegistry {
     private final Map<String, List<String>> lookUpMap =
         new HashMap<String, List<String>>();
 
+    private final Map<String, String> defaultErrorPages =
+        new HashMap<String, String>();
+
+    private final Map<String, Map<String, String>> specificErrorPages =
+        new HashMap<String, Map<String, String>>();
+
     private IStaticHelpContent helpContent =
         IStaticHelpContent.DEFAULT;
 
@@ -27,6 +33,11 @@ public class PoolRegistry {
     }
 
     public void changed(Set<IExtension> contentPoolsExtensions) {
+        Map<String, String> tempDefaultErrorPages =
+            new HashMap<String, String>();
+        Map<String, Map<String, String>> tempSpecifiErrorPages =
+            new HashMap<String, Map<String, String>>();
+
         Map<String, List<String>> bundlesOfPool =
             new HashMap<String, List<String>>();
         Set<String> pools = new HashSet<String>();
@@ -35,8 +46,8 @@ public class PoolRegistry {
             new HashMap<String, List<String>>();
         for (IExtension ext : contentPoolsExtensions) {
             String bundleSymbolicName = ext.getNamespaceIdentifier();
-            IConfigurationElement[] poolElements = ext.getConfigurationElements();
-            for (IConfigurationElement element : poolElements) {
+            IConfigurationElement[] childElements = ext.getConfigurationElements();
+            for (IConfigurationElement element : childElements) {
                 if (!"pool".equals(element.getName())) continue;
 
                 String pool = element.getAttribute("id"); //$NON-NLS-1$
@@ -66,6 +77,33 @@ public class PoolRegistry {
                         preferredList.add(0, string);
                     }
                 }
+
+            }
+
+            // error pages
+            for (IConfigurationElement element : childElements) {
+                if (!"errorPage".equals(element.getName())) continue;
+
+                String href =
+                    element.getAttribute("href"); //$NON-NLS-1$
+                if (href == null) continue;
+                String classPrefix =
+                    element.getAttribute("classPrefix"); //$NON-NLS-1$
+
+                // default error page
+                if (classPrefix == null) {
+                    tempDefaultErrorPages.put(bundleSymbolicName, href);
+                    continue;
+                }
+
+                // specific error page
+                Map<String, String> specifics =
+                    tempSpecifiErrorPages.get(bundleSymbolicName);
+                if (specifics == null) {
+                    specifics = new HashMap<String, String>();
+                    tempSpecifiErrorPages.put(bundleSymbolicName, specifics);
+                }
+                specifics.put(classPrefix, href);
             }
         }
 
@@ -94,17 +132,23 @@ public class PoolRegistry {
             }
 
             // sort according to "bundlesToPrefer" attribute
-            for (String bundle : preferredBundlesReverse.keySet()) {
-                List<String> listToSort = lookUpMap.get(bundle);
+            for (Map.Entry<String, List<String>> entry : preferredBundlesReverse.entrySet()) {
+
+                List<String> listToSort = lookUpMap.get(entry.getKey());
                 if (listToSort == null) continue;
 
-                for (String toPrefer : preferredBundlesReverse.get(bundle)) {
+                for (String toPrefer : entry.getValue()) {
                     if (!listToSort.contains(toPrefer)) continue;
                     listToSort.remove(toPrefer);
                     listToSort.add(0, toPrefer);
                 }
-
             }
+
+            // error pages
+            defaultErrorPages.clear();
+            defaultErrorPages.putAll(tempDefaultErrorPages);
+            specificErrorPages.clear();
+            specificErrorPages.putAll(tempSpecifiErrorPages);
         }
 
     }
@@ -119,9 +163,13 @@ public class PoolRegistry {
         if (lookUpList == null) {
             lookUpList = Collections.emptyList();
         }
+
+        String errorPage = defaultErrorPages.get(sourceBundle);
         return new MyHrefResolver(sourceBundle,
                                   sourceHref,
                                   locale,
+                                  errorPage == null ? "error404.htm" : errorPage,
+                                  specificErrorPages.get(sourceBundle),
                                   lookUpList,
                                   helpContent);
     }
@@ -130,17 +178,23 @@ public class PoolRegistry {
 
         private final String sourceBundle;
         private final Locale locale;
+        private final String defaultErrorPage;
+        private final Map<String, String> errorPages;
         private final List<String> lookUpList;
         private final IStaticHelpContent helpContent;
 
         public MyHrefResolver(String sourceBundle,
                               String sourceHref,
                               Locale locale,
+                              String defaultErrorPage,
+                              Map<String, String> errorPages,
                               List<String> lookUpList,
                               IStaticHelpContent helpContent) {
             super(sourceHref);
             this.sourceBundle = sourceBundle;
             this.locale = locale;
+            this.defaultErrorPage = defaultErrorPage;
+            this.errorPages = errorPages;
             this.lookUpList = lookUpList;
             this.helpContent = helpContent;
         }
@@ -161,8 +215,12 @@ public class PoolRegistry {
         }
 
         @Override
-        protected String getNotFoundHtmlFile() {
-            return "error404.htm";
+        protected String getNotFoundHtmlFile(String classPrefix) {
+            if (classPrefix == null || errorPages == null)
+                return defaultErrorPage;
+
+            String result = errorPages.get(classPrefix);
+            return result == null ? defaultErrorPage : result;
         }
 
         public String getNotFoundClassName() {
