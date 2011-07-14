@@ -206,9 +206,9 @@ public class CrossLinksResolvedInputStream extends InputStream {
 
             int hrefStart = -6;
             int hrefLength = -1;
+            int hrefPrefixLength = 0;
             int classStart = -7;
             int classLength = -1;
-            int classPrefixLength = 0;
             boolean doubleQuote = true;
             byte[] bytes = new byte[size];
             for (int i = 0; i < size; i++) {
@@ -229,15 +229,15 @@ public class CrossLinksResolvedInputStream extends InputStream {
                            && (   (doubleQuote && current == CHAR_QUOTE)
                                || (!doubleQuote && current == CHAR_SINGLEQUOTE))) {
                     hrefLength = i - hrefStart;
+                } else if (   hrefStart > 0
+                           && hrefLength < 0
+                           && current == CHAR_LT) {
+                    hrefPrefixLength = i - hrefStart;
                 } else if (   classStart > 0
                            && classLength < 0
                            && (   (doubleQuote && current == CHAR_QUOTE)
                                || (!doubleQuote && current == CHAR_SINGLEQUOTE))) {
                     classLength = i - classStart;
-                } else if (   classStart > 0
-                           && classLength < 0
-                           && current == CHAR_LT) {
-                    classPrefixLength = i - classStart;
                 } else if (hrefStart == -5) {
                     hrefStart = current == CHAR_R ? -4 : -6;
                 } else if (hrefStart == -4) {
@@ -277,9 +277,9 @@ public class CrossLinksResolvedInputStream extends InputStream {
             awaitEndTag = resolve(bytes,
                                   hrefStart,
                                   hrefLength,
+                                  hrefPrefixLength,
                                   classStart,
-                                  classLength,
-                                  classPrefixLength);
+                                  classLength);
             return CHAR_LT;
         }
 
@@ -292,20 +292,29 @@ public class CrossLinksResolvedInputStream extends InputStream {
     private boolean resolve(byte[] bytes,
                             int hrefStart,
                             int hrefLength,
+                            int hrefPrefixLength,
                             int classStart,
-                            int classLength,
-                            int classPrefixLength) throws IOException {
+                            int classLength) throws IOException {
 
         // required: "href" attribute
         if (hrefLength <= 0) return false;
 
-        String href = new String(bytes, hrefStart, hrefLength, ENCODING);
+        int hrefPrefixLengthWithDelimiter = hrefPrefixLength <= 0
+                                            ? 0
+                                            : hrefPrefixLength + 1;
+        String href = new String(bytes,
+                                 hrefStart + hrefPrefixLengthWithDelimiter,
+                                 hrefLength - hrefPrefixLengthWithDelimiter,
+                                 ENCODING);
         String hrefResolved = hrefResolver.resolve(href);
-        String linkPrefix = classPrefixLength <= 0
-                            ? null
-                            : new String(bytes, classStart, classPrefixLength, ENCODING);
+        String targetId = hrefPrefixLength <= 0
+                          ? null
+                          : new String(bytes,
+                                       hrefStart,
+                                       hrefPrefixLength,
+                                       ENCODING);
         byte[] newHref = hrefResolved == null
-                         ? hrefResolver.getNotFoundHref(linkPrefix).getBytes(ENCODING)
+                         ? hrefResolver.getNotFoundHref(targetId).getBytes(ENCODING)
                          : hrefResolved.getBytes(ENCODING);
 
         // cross-link target not found and "class=..." exists?
@@ -390,26 +399,10 @@ public class CrossLinksResolvedInputStream extends InputStream {
 
         // beginning without "!--"
         ringBufferEnd = ringBufferStart;
-        if (classPrefixLength > 0 && classStart < hrefStart) {
-            for (int i = 3; i < classStart; i++) {
-                ringBuffer[ringBufferEnd] = bytes[i];
-                ringBufferEnd = (ringBufferEnd + 1) % BUFFER_SIZE;
-            }
-            for (int i = classPrefixLength + 1; i < classLength; i++) {
-                ringBuffer[ringBufferEnd] = bytes[classStart + i];
-                ringBufferEnd = (ringBufferEnd + 1) % BUFFER_SIZE;
-            }
-            for (int i = classStart + classLength; i < hrefStart; i++) {
-                ringBuffer[ringBufferEnd] = bytes[i];
-                ringBufferEnd = (ringBufferEnd + 1) % BUFFER_SIZE;
-            }
-        } else {
-            for (int i = 3; i < hrefStart; i++) {
-                ringBuffer[ringBufferEnd] = bytes[i];
-                ringBufferEnd = (ringBufferEnd + 1) % BUFFER_SIZE;
-            }
+        for (int i = 3; i < hrefStart; i++) {
+            ringBuffer[ringBufferEnd] = bytes[i];
+            ringBufferEnd = (ringBufferEnd + 1) % BUFFER_SIZE;
         }
-
 
         // replace "href" value
         for (int i = 0; i < newHref.length; i++) {
@@ -448,24 +441,9 @@ public class CrossLinksResolvedInputStream extends InputStream {
         }
 
         // replace rest
-        if (classPrefixLength > 0 && classStart > hrefStart) {
-            for (int i = hrefStart + hrefLength + 1; i < classStart; i++) {
-                ringBuffer[ringBufferEnd] = bytes[i];
-                ringBufferEnd = (ringBufferEnd + 1) % BUFFER_SIZE;
-            }
-            for (int i = classPrefixLength + 1; i < classLength; i++) {
-                ringBuffer[ringBufferEnd] = bytes[classStart + i];
-                ringBufferEnd = (ringBufferEnd + 1) % BUFFER_SIZE;
-            }
-            for (int i = classStart + classLength; i < bytes.length - 3; i++) {
-                ringBuffer[ringBufferEnd] = bytes[i];
-                ringBufferEnd = (ringBufferEnd + 1) % BUFFER_SIZE;
-            }
-        } else {
-            for (int i = hrefStart + hrefLength + 1; i < bytes.length - 3; i++) {
-                ringBuffer[ringBufferEnd] = bytes[i];
-                ringBufferEnd = (ringBufferEnd + 1) % BUFFER_SIZE;
-            }
+        for (int i = hrefStart + hrefLength + 1; i < bytes.length - 3; i++) {
+            ringBuffer[ringBufferEnd] = bytes[i];
+            ringBufferEnd = (ringBufferEnd + 1) % BUFFER_SIZE;
         }
 
         // '>'
@@ -473,7 +451,6 @@ public class CrossLinksResolvedInputStream extends InputStream {
         ringBufferEnd = (ringBufferEnd + 1) % BUFFER_SIZE;
 
         return true;
-
     }
 
     @Override

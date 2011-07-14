@@ -115,21 +115,19 @@ public class CrossLinksResolvedInputStreamTest {
     }
 
     @Test
-    public void testClassPrefix() throws Exception {
-//        assertTransformedEquals(
-//                "<a href='-T-' class='abc'>text</a>",
-//                "<!--a href='t' class='prefix<abc'-->text<!--/a-->");
-//        assertTransformedEquals(
-//                "<a class='abc' href='-T-'>text</a>",
-//                "<!--a class='prefix<abc' href='t'-->text<!--/a-->");
+    public void testTargetSpecificErrorPages() throws Exception {
+        assertTransformedEquals(
+                "<a href='-T-' class='abc'>text</a>",
+                "<!--a href='prefix<t' class='abc'-->text<!--/a-->");
+        assertTransformedEquals(
+                "<a class='abc' href='-T-'>text</a>",
+                "<!--a class='abc' href='prefix<t'-->text<!--/a-->");
         assertTransformedEquals(
                 "<a href='myError404.htm' class='error404'>text</a>",
-                "<!--a href='" + NOT_FOUND + "' class='my<abc'-->text<!--/a-->");
-//        assertTransformedEquals(
-//                "<a class='error404' href='myError404.htm'>text</a>",
-//                "<!--a class='my<abc' href='" + NOT_FOUND + "'-->text<!--/a-->");
-
-
+                "<!--a href='my<" + NOT_FOUND + "' class='abc'-->text<!--/a-->");
+        assertTransformedEquals(
+                "<a class='error404' href='myError404.htm'>text</a>",
+                "<!--a class='abc' href='my<" + NOT_FOUND + "'-->text<!--/a-->");
     }
 
     @Test
@@ -163,8 +161,8 @@ public class CrossLinksResolvedInputStreamTest {
             }
 
             @Override
-            public String getNotFoundHref(String classPrefix) {
-                return "my".equals(classPrefix)
+            public String getNotFoundHref(String targetId) {
+                return "my".equals(targetId)
                         ? "myError404.htm"
                         : "error404.htm";
             }

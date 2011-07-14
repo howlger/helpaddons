@@ -65,10 +65,10 @@ public class PoolRegistryTest {
             return errorPage(null, href);
         }
 
-        public PoolExtensionBuilder errorPage(String classPrefix, String href) {
+        public PoolExtensionBuilder errorPage(String prefix, String href) {
             if (bundle == null)
                 throw new IllegalStateException("errorPage() must follow bundle()");
-            errorPages.add(new ErrorPageElement(classPrefix, href));
+            errorPages.add(new ErrorPageElement(prefix, href));
             return this;
         }
 
@@ -280,29 +280,29 @@ public class PoolRegistryTest {
 
     private static class ErrorPageElement extends AbstractElement {
 
-        private final String classPrefix;
+        private final String prefix;
 
         private final String href;
 
-        public ErrorPageElement(String classPrefix, String href) {
+        public ErrorPageElement(String prefix, String href) {
             if (href == null)
                 throw new IllegalArgumentException("href must not be null");
-            this.classPrefix = classPrefix;
+            this.prefix = prefix;
             this.href = href;
         }
 
         @Override
         public String getAttribute(String name) {
-            if (name.equals("classPrefix")) return classPrefix;
+            if (name.equals("prefix")) return prefix;
             if (name.equals("href")) return href;
             return null;
         }
 
         @Override
         public String[] getAttributeNames() {
-            return classPrefix == null
+            return prefix == null
                    ? new String[] {"href"}
-                   : new String[] {"classPrefix", "href"};
+                   : new String[] {"prefix", "href"};
         }
 
         @Override

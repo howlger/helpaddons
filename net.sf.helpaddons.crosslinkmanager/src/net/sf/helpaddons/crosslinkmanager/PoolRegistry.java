@@ -87,11 +87,11 @@ public class PoolRegistry {
                 String href =
                     element.getAttribute("href"); //$NON-NLS-1$
                 if (href == null) continue;
-                String classPrefix =
-                    element.getAttribute("classPrefix"); //$NON-NLS-1$
+                String prefix =
+                    element.getAttribute("prefix"); //$NON-NLS-1$
 
                 // default error page
-                if (classPrefix == null) {
+                if (prefix == null) {
                     tempDefaultErrorPages.put(bundleSymbolicName, href);
                     continue;
                 }
@@ -103,7 +103,7 @@ public class PoolRegistry {
                     specifics = new HashMap<String, String>();
                     tempSpecifiErrorPages.put(bundleSymbolicName, specifics);
                 }
-                specifics.put(classPrefix, href);
+                specifics.put(prefix, href);
             }
         }
 
@@ -215,11 +215,11 @@ public class PoolRegistry {
         }
 
         @Override
-        protected String getNotFoundHtmlFile(String classPrefix) {
-            if (classPrefix == null || errorPages == null)
+        protected String getNotFoundHtmlFile(String hrefPrefix) {
+            if (hrefPrefix == null || errorPages == null)
                 return defaultErrorPage;
 
-            String result = errorPages.get(classPrefix);
+            String result = errorPages.get(hrefPrefix);
             return result == null ? defaultErrorPage : result;
         }
 

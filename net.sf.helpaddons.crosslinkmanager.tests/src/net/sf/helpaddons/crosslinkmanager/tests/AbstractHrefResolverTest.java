@@ -37,7 +37,7 @@ public class AbstractHrefResolverTest {
         }
 
         @Override
-        protected String getNotFoundHtmlFile(String classPrefix) {
+        protected String getNotFoundHtmlFile(String hrefPrefix) {
             return "errors/404.htm";
         }
 
