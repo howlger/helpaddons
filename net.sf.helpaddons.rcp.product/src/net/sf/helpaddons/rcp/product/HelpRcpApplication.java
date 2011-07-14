@@ -92,7 +92,8 @@ public class HelpRcpApplication implements IApplication {
 
     public synchronized Object start(final IApplicationContext context)
             throws Exception {
-//        Display.setAppName(context.getBrandingName());
+        Display.setAppName(context.getBrandingName());
+//        BaseHelpSystem.getLocalSearchManager().ensureIndexUpdated(monitor, index);
 
         // start Help Web Server
         BaseHelpSystem.setMode(BaseHelpSystem.MODE_STANDALONE);
@@ -145,16 +146,20 @@ public class HelpRcpApplication implements IApplication {
                 // helpDisplay.displaySearch("searchWord=myQuery", "", false);
 
                 // exiting the application by closing the help window
-                Shell[] allShells = Display.getCurrent().getShells();
-                if (allShells.length != 1) {
-                    throw new RuntimeException("No or more than one shell found");
-                }
+                if (!isExternalBrowserMode()) {
 
-                allShells[0].addListener(SWT.Close, new Listener() {
-                    public void handleEvent(Event event) {
-                        stopHelp();
+                    Shell[] allShells = Display.getCurrent().getShells();
+                    if (allShells.length != 1) {
+                        throw new RuntimeException("No or more than one shell found");
                     }
-                });
+
+                    allShells[0].addListener(SWT.Close, new Listener() {
+                        public void handleEvent(Event event) {
+                            stopHelp();
+                        }
+                    });
+
+                }
 
                 // end splash (in the org.eclipse.core.runtime.applications
                 // extension thread must be set to "main") etc.
