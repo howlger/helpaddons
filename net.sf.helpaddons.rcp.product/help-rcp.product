@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?pde version="3.5"?>
 
-<product id="net.sf.helpaddons.rcp.product.product" application="net.sf.helpaddons.rcp.product.application" useFeatures="true" includeLaunchers="true">
-
+<product name="Eclipse Help Add-ons" id="net.sf.helpaddons.rcp.product.product" application="net.sf.helpaddons.rcp.product.application" version="1.0.0" useFeatures="true" includeLaunchers="true">
 
    <configIni use="default">
       <win32>/net.sf.helpaddons.rcp.product/config.ini</win32>
@@ -29,7 +28,6 @@ openFile</programArgs>
       </win>
    </launcher>
 
-
    <vm>
    </vm>
 
@@ -44,7 +42,7 @@ openFile</programArgs>
    </plugins>
 
    <features>
-      <feature id="net.sf.helpaddons.rcp.feature" version="0.5.0"/>
+      <feature id="net.sf.helpaddons.rcp.feature"/>
    </features>
 
 
