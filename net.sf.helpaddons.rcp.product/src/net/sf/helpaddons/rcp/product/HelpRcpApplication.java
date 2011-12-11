@@ -25,6 +25,10 @@ import org.eclipse.help.internal.base.HelpBaseResources;
 import org.eclipse.help.internal.base.HelpDisplay;
 import org.eclipse.osgi.util.NLS;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.browser.Browser;
+import org.eclipse.swt.events.KeyAdapter;
+import org.eclipse.swt.events.KeyEvent;
+import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
@@ -158,6 +162,37 @@ public class HelpRcpApplication implements IApplication {
                             stopHelp();
                         }
                     });
+
+                    // find dialog on Ctrl+F (if not Internet Explorer which
+                    // supports this feature out of the box)
+                    Browser browser = null;
+                    Control[] children = allShells[0].getChildren();
+                    for (int i = 0; i < children.length; i++) {
+                        if (children[i] instanceof Browser) {
+                            browser = (Browser) children[i];
+                            break;
+                        }
+                    }
+                    if (   browser != null
+                        && !"ie".equalsIgnoreCase(browser.getBrowserType())) {
+                        browser.addKeyListener(new KeyAdapter() {
+                            public void keyPressed(KeyEvent e) {
+                                if (    e.keyCode == 'f'
+                                    && (e.stateMask & SWT.CTRL) != 0
+                                    && e.widget instanceof Browser) {
+                                    Browser browser = (Browser) e.widget;
+                                    e.doit = !browser.execute(
+                                        "if(parent "
+                                      + "&& parent.HelpFrame "
+                                      + "&& parent.HelpFrame.ContentFrame "
+                                      + "&& parent.HelpFrame.ContentFrame.ContentViewFrame "
+                                      + "&& parent.HelpFrame.ContentFrame.ContentViewFrame.find){"
+                                      + "parent.HelpFrame.ContentFrame.ContentViewFrame.find()}"
+                                      + "else if(window.find){window.find()}");
+                                }
+                            }
+                        });
+                    }
 
                 }
 
