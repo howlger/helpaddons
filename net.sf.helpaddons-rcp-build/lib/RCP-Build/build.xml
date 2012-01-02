@@ -12,8 +12,17 @@
      Eclipse RCP Build
 
      Requires:
-     * Eclipse + Delta Pack (see ${target.platform.dir})
-     * InstallJammer (see ${intalljammer.dir})
+     * Eclipse + Delta Pack + Automated Testing Framework
+       (see ${target.platform.dir}; download at
+       http://download.eclipse.org/eclipse/downloads/eclipse3x.php):
+       * Eclipse SDK (including PDE; "eclipse-SDK-<version>-win32.zip")
+       * DeltaPack ("eclipse-<version>-delta-pack.zip")
+       * Automated Testing Framework ("eclipse-test-framework-<version>.zip":
+         unzip: "features/org.eclipse.test_*", "plugins/org.eclipse.test_*.jar",
+         "plugins/org.eclipse.test.source_*.jar", "plugins/org.junit4_*.jar"
+         and "plugins/org.junit_*.jar")
+     * InstallJammer (see ${intalljammer.dir}; download at
+       http://installjammer.sourceforge.net/)
 
      Creates in subdirectory "out" (see ${out.dir}):
      * Executable Windows installer (*.exe)
@@ -36,12 +45,14 @@
     <!-- Location of the target platform: Eclipse Classic plus Delta Pack
          (Download at http://download.eclipse.org/eclipse/downloads/) -->
     <property name="target.platform.dir"
-              location="C:/Program Files/Eclipse3.6.1Delta"/>
+              location="C:/Program Files/Eclipse3.7.1+Delta+TestFramework"/>
 
     <!-- Location of InstallJammer: an open source install builder
          (see http://www.installjammer.com/) -->
     <property name="intalljammer.dir"
               location="C:/Program Files/InstallJammer"/>
+    <property name="intalljammer.config.dir"
+              location="${rcp.build.ant.dir}/InstallJammer_config"/>
 
     <property name="workspace.dir" location="${rcp.build.ant.dir}/../../.."/>
 
@@ -77,9 +88,10 @@
     <property name="product.force.version"
               value="${product.features}, ${product.plugins}"/>
 
+    <property name="product.overwrite.dir" value=""/>
     <property name="product.win.include.dir" value=""/>
 
-    <property name="installer.fixed.destination" value="No"/>
+    <property name="installer.no.dir.prompt" value="No"/>
     <property name="installer.destination.dir"
               value="&lt;%PROGRAM_FILES%>/&lt;%AppName%> &lt;%Version%>"/>
     <property name="installer.program.folder"
@@ -233,6 +245,16 @@
             <fileset dir="${workspace.dir}" includes="${product.features}"/>
         </copy>
 
+        <!-- overwrite -->
+        <condition property="overwrite.dir"
+                   value="${temp.dir}/null"
+                   else="${product.overwrite.dir}">
+            <equals arg1="${product.overwrite.dir}" arg2=""/>
+        </condition>
+        <copy todir="${temp.dir}/pde-build" overwrite="yes">
+            <fileset dir="${overwrite.dir}"/>
+        </copy>
+
         <!-- force/overwrite version number -->
         <replaceregexp byline="yes"
                        match="(^Bundle-Version:\s*)([^\s\n\r]+)([\s\n\r]?(.*)?$)"
@@ -285,6 +307,10 @@
         <copy file="${pde.build.plugin.dir}/templates/headless-build/build.properties"
               todir="${temp.dir}/pde-build/buildConfiguration"/>
 
+        <!-- default product targets: Windows and Linux (x86, GTK) -->
+        <property name="product.targets"
+                  value="win32, win32, x86 &amp; linux, gtk, x86"/>
+
         <!-- build product by PDE -->
         <subant inheritall="no">
             <fileset file="${pde.build.plugin.dir}/scripts/productBuild/productBuild.xml"/>
@@ -294,8 +320,7 @@
                       location="${target.platform.dir}"/>
             <property name="buildDirectory"
                       location="${temp.dir}/pde-build"/>
-            <property name="configs"
-                      value="win32, win32, x86 &amp; linux, gtk, x86"/>
+            <property name="configs" value="${product.targets}"/>
             <property name="product" value="${product.config}"/>
             <property name="archivePrefix" value="${launcher.name}"/>
             <property name="javacSource" value="1.5"/>
@@ -333,7 +358,7 @@
             <isset property="product.changelog"/>
         </condition>
         <copy todir="${temp.dir}">
-            <fileset dir="${rcp.build.ant.dir}/InstallJammer_config"/>
+            <fileset dir="${intalljammer.config.dir}"/>
             <filterchain>
                 <replacestring from="&lt;%directory of files to install%>"
                                to="${temp.dir}/${launcher.name}"/>
@@ -349,7 +374,7 @@
             <arg line="-DApplicationID &quot;${launcher.name}_${product.version}&quot;"/>
             <arg line="-DPackageDescription &quot;${product.description}&quot;"/>
             <arg line="-DInstallDir    &quot;${installer.destination.dir}&quot;"/>
-            <arg line="-DFixedDestination   &quot;${installer.fixed.destination}&quot;"/>
+            <arg line="-DFixedDestination   &quot;${installer.no.dir.prompt}&quot;"/>
             <arg line="-DProgramFolderName  &quot;${installer.program.folder}&quot;"/>
             <arg line="-DImage         &quot;${installer.image.left}&quot;"/>
             <arg line="-DIcon          &quot;${installer.image.top}&quot;"/>
@@ -370,6 +395,6 @@
 </project>
 <!--
 TODO:
-- include JRE
-- [Installer] if executable already exists then show warning "It is recomanded to uninstall..."
+- [Installer] checkbox for "Windows,ProgramFolderAllUsers {Yes}" (-> not all users have permissions to do it)
+- [Installer] if executable already exists then show warning "It is recommended to uninstall..."
 -->
