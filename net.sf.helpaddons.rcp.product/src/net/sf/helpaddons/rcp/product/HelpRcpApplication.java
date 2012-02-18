@@ -47,6 +47,10 @@ import org.osgi.framework.Bundle;
  */
 public class HelpRcpApplication implements IApplication {
 
+    private static final String ARG_SEARCH = "??search=";
+    private static final String ARG_TOPIC = "??topic=";
+    private static final String ARG_CONTEXT_ID = "??contextId=";
+
     /**
      * One of the states which are defined in
      * {@link org.eclipse.help.internal.base.HelpApplication}:
@@ -120,18 +124,7 @@ public class HelpRcpApplication implements IApplication {
                 if (event.text != null) {
                     Display.getCurrent().asyncExec(new Runnable() {
                         public void run() {
-                            String query = event.text;
-                            try {
-                                query = URLEncoder.encode(query, "UTF-8");
-                            } catch (UnsupportedEncodingException e) {
-                                // TODO Auto-generated catch block
-                                // UTF-8 encoding is always supported, but...
-                                e.printStackTrace();
-                            }
-                            HelpDisplay helpDisplay = BaseHelpSystem.getHelpDisplay();
-                            helpDisplay.displaySearch("searchWord=" + query,
-                                                      "",
-                                                      isExternalBrowserMode());
+                            open(event.text);
                         };
                     });
                 }
@@ -258,6 +251,67 @@ public class HelpRcpApplication implements IApplication {
 
         // UI loop may be sleeping if no SWT browser is up
         DisplayUtils.wakeupUI();
+    }
+
+    /**
+     *
+     *
+     * @param args search word to query, topic or context ID to open (search
+     *             word and topic can be combined); Examples:
+     *             <ul><li>??topic=/my.plugin/path/file.htm</li>
+     *                 <li>??search=my query</li>
+     *                 <li>??topic=/my.plugin/path/file.htm??search=query</li>
+     *                 <li>???contextId=my.plugin.context_sensitive_help_123</li>
+     *
+     */
+    private void open(String args) {
+        HelpDisplay help = BaseHelpSystem.getHelpDisplay();
+
+        // context ID?
+        if (args.startsWith(ARG_CONTEXT_ID)) {
+            help.displayHelpResource(
+                  "contextId="
+                + encode(args.substring(ARG_CONTEXT_ID.length())),
+                isExternalBrowserMode());
+        }
+
+        // topic to open?
+        String topic = "";
+        if (args.startsWith(ARG_TOPIC)) {
+            int searchStart = args.indexOf(ARG_SEARCH, ARG_TOPIC.length());
+            topic = searchStart < 0
+                    ? args.substring(ARG_TOPIC.length()).trim()
+                    : args.substring(ARG_TOPIC.length(), searchStart).trim();
+
+            // without to search?
+            if (searchStart < 0) {
+                help.displayHelpResource(
+                        "topic=" + encode(args.substring(ARG_TOPIC.length())),
+                        isExternalBrowserMode());
+                return;
+            }
+
+            args = args.substring(searchStart + ARG_SEARCH.length()).trim();
+        }
+
+        // query
+        if (args.startsWith(ARG_SEARCH)) {
+            args = args.substring(ARG_SEARCH.length());
+        }
+        help.displaySearch("searchWord=" + encode(args),
+                           topic,
+                           isExternalBrowserMode());
+    }
+
+    private static String encode(String string) {
+        try {
+            return URLEncoder.encode(string, "UTF-8");
+        } catch (UnsupportedEncodingException e) {
+            // UTF-8 encoding is always supported, if not:
+            e.printStackTrace();
+            return string;
+        }
+
     }
 
 }
