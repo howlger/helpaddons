@@ -20,6 +20,9 @@ import net.sf.helpaddons.rcp.product.internal.RcpPlugin;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.equinox.app.IApplication;
 import org.eclipse.equinox.app.IApplicationContext;
+import org.eclipse.help.HelpSystem;
+import org.eclipse.help.IContext;
+import org.eclipse.help.IHelpResource;
 import org.eclipse.help.internal.base.BaseHelpSystem;
 import org.eclipse.help.internal.base.HelpBaseResources;
 import org.eclipse.help.internal.base.HelpDisplay;
@@ -269,10 +272,13 @@ public class HelpRcpApplication implements IApplication {
 
         // context ID?
         if (args.startsWith(ARG_CONTEXT_ID)) {
-            help.displayHelpResource(
-                  "contextId="
-                + encode(args.substring(ARG_CONTEXT_ID.length())),
-                isExternalBrowserMode());
+            String contextId = args.substring(ARG_CONTEXT_ID.length());
+            IContext context = HelpSystem.getContext(contextId);
+            if (context == null) return;
+
+            IHelpResource[] topics = context.getRelatedTopics();
+            if (topics.length == 0) return;
+            args = ARG_TOPIC + topics[0].getHref();
         }
 
         // topic to open?
