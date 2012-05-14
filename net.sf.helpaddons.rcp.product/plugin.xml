@@ -32,5 +32,41 @@
          </run>
       </application>
    </extension>
+   <extension
+         id="rcpIndexer"
+         point="org.eclipse.core.runtime.applications">
+      <application
+            cardinality="singleton-global"
+            thread="main"
+            visible="true">
+         <run
+               class="net.sf.helpaddons.rcp.product.RcpIndexer">
+         </run>
+      </application>
+   </extension>
+   <extension
+         id="webIndexer"
+         point="org.eclipse.core.runtime.applications">
+      <application
+            cardinality="singleton-global"
+            thread="main"
+            visible="true">
+         <run
+               class="net.sf.helpaddons.rcp.product.WebIndexer">
+         </run>
+      </application>
+   </extension>
+   <extension
+         id="webApplication"
+         point="org.eclipse.core.runtime.applications">
+      <application
+            cardinality="*"
+            thread="main"
+            visible="true">
+         <run
+               class="net.sf.helpaddons.rcp.product.HelpWebApplication">
+         </run>
+      </application>
+   </extension>
 
 </plugin>

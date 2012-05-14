@@ -14,18 +14,32 @@ import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import java.util.StringTokenizer;
 
 import net.sf.helpaddons.rcp.product.internal.RcpPlugin;
 
+import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Platform;
+import org.eclipse.core.runtime.Status;
+import org.eclipse.core.runtime.jobs.Job;
 import org.eclipse.equinox.app.IApplication;
 import org.eclipse.equinox.app.IApplicationContext;
 import org.eclipse.help.HelpSystem;
 import org.eclipse.help.IContext;
 import org.eclipse.help.IHelpResource;
 import org.eclipse.help.internal.base.BaseHelpSystem;
+import org.eclipse.help.internal.base.HelpBasePlugin;
 import org.eclipse.help.internal.base.HelpBaseResources;
 import org.eclipse.help.internal.base.HelpDisplay;
+import org.eclipse.help.internal.search.LocalSearchManager;
+import org.eclipse.help.internal.search.SearchIndexWithIndexingProgress;
 import org.eclipse.osgi.util.NLS;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.browser.Browser;
@@ -50,9 +64,10 @@ import org.osgi.framework.Bundle;
  */
 public class HelpRcpApplication implements IApplication {
 
-    private static final String ARG_SEARCH = "??search=";
-    private static final String ARG_TOPIC = "??topic=";
-    private static final String ARG_CONTEXT_ID = "??contextId=";
+    private static final String ARG_RESTART = "??restart"; //$NON-NLS-1$
+    private static final String ARG_SEARCH = "??search="; //$NON-NLS-1$
+    private static final String ARG_TOPIC = "??topic="; //$NON-NLS-1$
+    private static final String ARG_CONTEXT_ID = "??contextId="; //$NON-NLS-1$
 
     /**
      * One of the states which are defined in
@@ -69,6 +84,8 @@ public class HelpRcpApplication implements IApplication {
 
     private static final String HELP_APPLICATION_CLASS_NAME =
         "org.eclipse.help.internal.base.HelpApplication"; //$NON-NLS-1$
+
+    private Integer exitCode = EXIT_OK;
 
     /**
      * Copy of org.eclipse.help.internal.base.DisplayUtils (only not used
@@ -104,7 +121,6 @@ public class HelpRcpApplication implements IApplication {
     public synchronized Object start(final IApplicationContext context)
             throws Exception {
         Display.setAppName(context.getBrandingName());
-//        BaseHelpSystem.getLocalSearchManager().ensureIndexUpdated(monitor, index);
 
         // start Help Web Server
         BaseHelpSystem.setMode(BaseHelpSystem.MODE_STANDALONE);
@@ -196,13 +212,31 @@ public class HelpRcpApplication implements IApplication {
                 // extension thread must be set to "main") etc.
                 context.applicationRunning();
 
+                // create or update search index on first start-up instead of
+                // on first query
+                Job ensureIndexUpdated = new Job("") {
+                    protected IStatus run(IProgressMonitor monitor) {
+                        LocalSearchManager searchManager =
+                                BaseHelpSystem.getLocalSearchManager();
+                        String locale = Platform.getNL();
+                        if (locale == null) {
+                            locale = Locale.getDefault().toString();
+                        }
+                        SearchIndexWithIndexingProgress index =
+                                searchManager.getIndex(locale);
+                        searchManager.ensureIndexUpdated(monitor, index);
+                        return Status.OK_STATUS;
+                    }
+                };
+                ensureIndexUpdated.setPriority(Job.LONG);
+                ensureIndexUpdated.schedule();
             }
         });
 
         // try running UI loop if possible
         DisplayUtils.runUI();
 
-        return EXIT_OK;
+        return exitCode;
     }
 
     public synchronized void stop() {
@@ -257,8 +291,6 @@ public class HelpRcpApplication implements IApplication {
     }
 
     /**
-     *
-     *
      * @param args search word to query, topic or context ID to open (search
      *             word and topic can be combined); Examples:
      *             <ul><li>??topic=/my.plugin/path/file.htm</li>
@@ -268,7 +300,13 @@ public class HelpRcpApplication implements IApplication {
      *
      */
     private void open(String args) {
-        HelpDisplay help = BaseHelpSystem.getHelpDisplay();
+
+        // restart?
+        if (ARG_RESTART.equalsIgnoreCase(args)) {
+            exitCode = EXIT_RESTART;
+            stopHelp();
+            return;
+        }
 
         // context ID?
         if (args.startsWith(ARG_CONTEXT_ID)) {
@@ -282,6 +320,7 @@ public class HelpRcpApplication implements IApplication {
         }
 
         // topic to open?
+        HelpDisplay help = BaseHelpSystem.getHelpDisplay();
         String topic = "";
         if (args.startsWith(ARG_TOPIC)) {
             int searchStart = args.indexOf(ARG_SEARCH, ARG_TOPIC.length());
