@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?pde version="3.5"?>
 
-<product name="Eclipse Help Add-ons" id="net.sf.helpaddons.rcp.product.product" application="net.sf.helpaddons.rcp.product.application" version="1.2.0" useFeatures="true" includeLaunchers="true">
+<product name="Eclipse Help Add-ons" id="net.sf.helpaddons.rcp.product.product" application="net.sf.helpaddons.rcp.product.application" version="1.3.0" useFeatures="true" includeLaunchers="true">
 
    <configIni use="default">
       <win32>/net.sf.helpaddons.rcp.product/config.ini</win32>
