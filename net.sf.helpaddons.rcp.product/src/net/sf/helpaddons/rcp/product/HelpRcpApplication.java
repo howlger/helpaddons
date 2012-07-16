@@ -14,18 +14,12 @@ import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URLEncoder;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Locale;
-import java.util.StringTokenizer;
 
 import net.sf.helpaddons.rcp.product.internal.RcpPlugin;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
-import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
@@ -35,7 +29,6 @@ import org.eclipse.help.HelpSystem;
 import org.eclipse.help.IContext;
 import org.eclipse.help.IHelpResource;
 import org.eclipse.help.internal.base.BaseHelpSystem;
-import org.eclipse.help.internal.base.HelpBasePlugin;
 import org.eclipse.help.internal.base.HelpBaseResources;
 import org.eclipse.help.internal.base.HelpDisplay;
 import org.eclipse.help.internal.search.LocalSearchManager;
@@ -64,6 +57,8 @@ import org.osgi.framework.Bundle;
  */
 public class HelpRcpApplication implements IApplication {
 
+    private static final String ARG_IDENTIFIER_A = "-openFile"; //$NON-NLS-1$
+    private static final String ARG_IDENTIFIER_B = "--openFile"; //$NON-NLS-1$
     private static final String ARG_RESTART = "??restart"; //$NON-NLS-1$
     private static final String ARG_SEARCH = "??search="; //$NON-NLS-1$
     private static final String ARG_TOPIC = "??topic="; //$NON-NLS-1$
@@ -86,6 +81,8 @@ public class HelpRcpApplication implements IApplication {
         "org.eclipse.help.internal.base.HelpApplication"; //$NON-NLS-1$
 
     private Integer exitCode = EXIT_OK;
+
+    private volatile boolean openFileAtStartUpDone = false;
 
     /**
      * Copy of org.eclipse.help.internal.base.DisplayUtils (only not used
@@ -120,92 +117,45 @@ public class HelpRcpApplication implements IApplication {
 
     public synchronized Object start(final IApplicationContext context)
             throws Exception {
-        Display.setAppName(context.getBrandingName());
 
-        // start Help Web Server
-        BaseHelpSystem.setMode(BaseHelpSystem.MODE_STANDALONE);
-        if (!BaseHelpSystem.ensureWebappRunning()) {
-            System.out.println(NLS.bind(
-                    HelpBaseResources.HelpApplication_couldNotStart, Platform
-                            .getLogFileLocation().toOSString()));
-            return EXIT_OK;
+        // use open file feature to open search results
+        Listener openFileListener = new Listener() {
+            public void handleEvent(final Event event) {
+                if (event.text == null) return;
+                if (!openFileAtStartUpDone) {
+                    openFileAtStartUpDone = true;
+                    if (computeOpenFileArg() != null) {
+                        open(computeOpenFileArg());
+                        return;
+                    }
+                }
+                Display.getCurrent().asyncExec(new Runnable() {
+                    public void run() {
+                        open(event.text);
+                    };
+                });
+            }
+        };
+        Display.setAppName(context.getBrandingName());
+        Display display = Display.getCurrent();
+        if (display == null) {
+            display = new Display();
         }
+        display.addListener(SWT.OpenDocument, openFileListener);
 
         // as soon as the UI thread is started (see below)
         // display the help window
-        Display display = Display.getCurrent();
-        if (display == null)
-            display = new Display();
-
-        // use open file feature to open search results
-        display.addListener(SWT.OpenDocument, new Listener(){
-            public void handleEvent(final Event event) {
-                if (event.text != null) {
-                    Display.getCurrent().asyncExec(new Runnable() {
-                        public void run() {
-                            open(event.text);
-                        };
-                    });
-                }
-            }
-        });
-
         display.asyncExec(new Runnable() {
             public void run() {
 
                 // open help window
-                HelpDisplay helpDisplay = BaseHelpSystem.getHelpDisplay();
-                helpDisplay.displayHelp(isExternalBrowserMode());
-
-                // instead of helpDisplay.displayHelp(false) the following
-                // can be used to display the window and run a query:
-                // helpDisplay.displaySearch("searchWord=myQuery", "", false);
-
-                // exiting the application by closing the help window
-                if (!isExternalBrowserMode()) {
-
-                    Shell[] allShells = Display.getCurrent().getShells();
-                    if (allShells.length != 1) {
-                        throw new RuntimeException("No or more than one shell found");
+                if (!openFileAtStartUpDone) {
+                    openFileAtStartUpDone = true;
+                    if (computeOpenFileArg() != null) {
+                        open(computeOpenFileArg());
+                    } else {
+                        showStartPage();
                     }
-
-                    allShells[0].addListener(SWT.Close, new Listener() {
-                        public void handleEvent(Event event) {
-                            stopHelp();
-                        }
-                    });
-
-                    // find dialog on Ctrl+F (if not Internet Explorer which
-                    // supports this feature out of the box)
-                    Browser browser = null;
-                    Control[] children = allShells[0].getChildren();
-                    for (int i = 0; i < children.length; i++) {
-                        if (children[i] instanceof Browser) {
-                            browser = (Browser) children[i];
-                            break;
-                        }
-                    }
-                    if (   browser != null
-                        && !"ie".equalsIgnoreCase(browser.getBrowserType())) {
-                        browser.addKeyListener(new KeyAdapter() {
-                            public void keyPressed(KeyEvent e) {
-                                if (    e.keyCode == 'f'
-                                    && (e.stateMask & SWT.CTRL) != 0
-                                    && e.widget instanceof Browser) {
-                                    Browser browser = (Browser) e.widget;
-                                    e.doit = !browser.execute(
-                                        "if(parent "
-                                      + "&& parent.HelpFrame "
-                                      + "&& parent.HelpFrame.ContentFrame "
-                                      + "&& parent.HelpFrame.ContentFrame.ContentViewFrame "
-                                      + "&& parent.HelpFrame.ContentFrame.ContentViewFrame.find){"
-                                      + "parent.HelpFrame.ContentFrame.ContentViewFrame.find()}"
-                                      + "else if(window.find){window.find()}");
-                                }
-                            }
-                        });
-                    }
-
                 }
 
                 // end splash (in the org.eclipse.core.runtime.applications
@@ -234,9 +184,68 @@ public class HelpRcpApplication implements IApplication {
         });
 
         // try running UI loop if possible
+        if (!ensureHelpWebServerRunning()) return EXIT_OK;
         DisplayUtils.runUI();
 
         return exitCode;
+    }
+
+    private boolean ensureHelpWebServerRunning() {
+        BaseHelpSystem.setMode(BaseHelpSystem.MODE_STANDALONE);
+        if (!BaseHelpSystem.ensureWebappRunning()) {
+            System.out.println(NLS.bind(
+                    HelpBaseResources.HelpApplication_couldNotStart, Platform
+                    .getLogFileLocation().toOSString()));
+            return false;
+        }
+        return true;
+    }
+
+    private void armHelpWindow() {
+        if (isExternalBrowserMode()) return;
+
+        // exiting the application by closing the help window
+        Shell[] allShells = Display.getCurrent().getShells();
+        if (allShells.length != 1) {
+            throw new RuntimeException("No or more than one shell found");
+        }
+        allShells[0].addListener(SWT.Close, new Listener() {
+            public void handleEvent(Event event) {
+                stopHelp();
+            }
+        });
+
+        // find dialog on Ctrl+F (if not Internet Explorer which
+        // supports this feature out of the box)
+        Browser browser = null;
+        Control[] children = allShells[0].getChildren();
+        for (int i = 0; i < children.length; i++) {
+            if (children[i] instanceof Browser) {
+                browser = (Browser) children[i];
+                break;
+            }
+        }
+        if (   browser != null
+            && !"ie".equalsIgnoreCase(browser.getBrowserType())) {
+            browser.addKeyListener(new KeyAdapter() {
+                public void keyPressed(KeyEvent e) {
+                    if (    e.keyCode == 'f'
+                        && (e.stateMask & SWT.CTRL) != 0
+                        && e.widget instanceof Browser) {
+                        Browser browser = (Browser) e.widget;
+                        e.doit = !browser.execute(
+                            "if(parent "
+                          + "&& parent.HelpFrame "
+                          + "&& parent.HelpFrame.ContentFrame "
+                          + "&& parent.HelpFrame.ContentFrame.ContentViewFrame "
+                          + "&& parent.HelpFrame.ContentFrame.ContentViewFrame.find){"
+                          + "parent.HelpFrame.ContentFrame.ContentViewFrame.find()}"
+                          + "else if(window.find){window.find()}");
+                    }
+                }
+            });
+        }
+
     }
 
     public synchronized void stop() {
@@ -288,6 +297,7 @@ public class HelpRcpApplication implements IApplication {
 
         // UI loop may be sleeping if no SWT browser is up
         DisplayUtils.wakeupUI();
+
     }
 
     /**
@@ -297,7 +307,6 @@ public class HelpRcpApplication implements IApplication {
      *                 <li>??search=my query</li>
      *                 <li>??topic=/my.plugin/path/file.htm??search=query</li>
      *                 <li>???contextId=my.plugin.context_sensitive_help_123</li>
-     *
      */
     private void open(String args) {
 
@@ -312,10 +321,16 @@ public class HelpRcpApplication implements IApplication {
         if (args.startsWith(ARG_CONTEXT_ID)) {
             String contextId = args.substring(ARG_CONTEXT_ID.length());
             IContext context = HelpSystem.getContext(contextId);
-            if (context == null) return;
+            if (context == null) {
+                showPageNotFoundPage();
+                return;
+            }
 
             IHelpResource[] topics = context.getRelatedTopics();
-            if (topics.length == 0) return;
+            if (topics.length == 0) {
+                showPageNotFoundPage();
+                return;
+            }
             args = ARG_TOPIC + topics[0].getHref();
         }
 
@@ -328,24 +343,47 @@ public class HelpRcpApplication implements IApplication {
                     ? args.substring(ARG_TOPIC.length()).trim()
                     : args.substring(ARG_TOPIC.length(), searchStart).trim();
 
-            // without to search?
+            // without query?
             if (searchStart < 0) {
+                ensureHelpWebServerRunning();
                 help.displayHelpResource(
                         "topic=" + encode(args.substring(ARG_TOPIC.length())),
                         isExternalBrowserMode());
+                armHelpWindow();
                 return;
             }
 
             args = args.substring(searchStart + ARG_SEARCH.length()).trim();
         }
 
-        // query
+        // with query
         if (args.startsWith(ARG_SEARCH)) {
             args = args.substring(ARG_SEARCH.length());
         }
+        ensureHelpWebServerRunning();
         help.displaySearch("searchWord=" + encode(args),
                            topic,
                            isExternalBrowserMode());
+        armHelpWindow();
+    }
+
+
+    private void showStartPage() {
+        ensureHelpWebServerRunning();
+        BaseHelpSystem.getHelpDisplay().displayHelp(isExternalBrowserMode());
+        armHelpWindow();
+    }
+
+    private void showPageNotFoundPage() {
+        ensureHelpWebServerRunning();
+        HelpDisplay helpDisplay = BaseHelpSystem.getHelpDisplay();
+        String href =
+            Platform.getPreferencesService().getString("org.eclipse.help.base",
+                                                       "page_not_found",
+                                                       null,
+                                                       null);
+        helpDisplay.displayHelpResource(href, isExternalBrowserMode());
+        armHelpWindow();
     }
 
     private static String encode(String string) {
@@ -356,7 +394,28 @@ public class HelpRcpApplication implements IApplication {
             e.printStackTrace();
             return string;
         }
+    }
 
+    private static String computeOpenFileArg() {
+        String[] args = Platform.getCommandLineArgs();
+        if (args == null) return null;
+
+        for (int i = 0; i < args.length; i++) {
+
+            // without identifier
+            if (   args[i].startsWith(ARG_RESTART)
+                || args[i].startsWith(ARG_SEARCH)
+                || args[i].startsWith(ARG_TOPIC)
+                || args[i].startsWith(ARG_CONTEXT_ID))
+                return args[i];
+
+            // with identifier "--openFile"
+            if (   i + 1 < args.length
+                && (   args[i].equalsIgnoreCase(ARG_IDENTIFIER_A)
+                    || args[i].equalsIgnoreCase(ARG_IDENTIFIER_B)))
+                return args[i + 1];
+        }
+        return null;
     }
 
 }
