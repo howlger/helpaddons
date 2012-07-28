@@ -80,9 +80,34 @@ public class HelpRcpApplication implements IApplication {
     private static final String HELP_APPLICATION_CLASS_NAME =
         "org.eclipse.help.internal.base.HelpApplication"; //$NON-NLS-1$
 
+    private static final Object STARTED_INSTANCE_LOCK = new Object();
+    private static volatile HelpRcpApplication startedInstance;
+    private static volatile String openFile;
+
     private Integer exitCode = EXIT_OK;
 
-    private volatile boolean openFileAtStartUpDone = false;
+    private static final Listener OPEN_FILE_LISTENER = new Listener() {
+        public void handleEvent(final Event event) {
+            if (event.text == null) return;
+
+            synchronized (STARTED_INSTANCE_LOCK) {
+
+                // started?
+                if (startedInstance == null) {
+                    openFile = event.text;
+                    return;
+                }
+
+                // if started show
+                display().asyncExec(new Runnable() {
+                    public void run() {
+                        startedInstance.open(event.text);
+                    };
+                });
+
+            }
+        }
+    };
 
     /**
      * Copy of org.eclipse.help.internal.base.DisplayUtils (only not used
@@ -115,55 +140,43 @@ public class HelpRcpApplication implements IApplication {
         }
     }
 
+    private static synchronized Display display() {
+        Display display = Display.getCurrent();
+        if (display != null) return display;
+
+        display = Display.getDefault();
+        if (display != null) return display;
+
+        return new Display();
+    }
+
+
     public synchronized Object start(final IApplicationContext context)
             throws Exception {
 
-        // use open file feature to open search results
-        Listener openFileListener = new Listener() {
-            public void handleEvent(final Event event) {
-                if (event.text == null) return;
-                if (!openFileAtStartUpDone) {
-                    openFileAtStartUpDone = true;
-                    if (computeOpenFileArg() != null) {
-                        open(computeOpenFileArg());
-                        return;
-                    }
-                }
-                Display.getCurrent().asyncExec(new Runnable() {
-                    public void run() {
-                        open(event.text);
-                    };
-                });
-            }
-        };
         Display.setAppName(context.getBrandingName());
-        Display display = Display.getCurrent();
-        if (display == null) {
-            display = new Display();
+        display().addListener(SWT.OpenDocument, OPEN_FILE_LISTENER);
+
+        // start web server
+        BaseHelpSystem.setMode(BaseHelpSystem.MODE_STANDALONE);
+        if (!BaseHelpSystem.ensureWebappRunning()) {
+            System.out.println(NLS.bind(
+                    HelpBaseResources.HelpApplication_couldNotStart, Platform
+                    .getLogFileLocation().toOSString()));
+            return EXIT_OK;
         }
-        display.addListener(SWT.OpenDocument, openFileListener);
 
         // as soon as the UI thread is started (see below)
         // display the help window
-        display.asyncExec(new Runnable() {
+        display().asyncExec(new Runnable() {
             public void run() {
-
-                // open help window
-                if (!openFileAtStartUpDone) {
-                    openFileAtStartUpDone = true;
-                    if (computeOpenFileArg() != null) {
-                        open(computeOpenFileArg());
-                    } else {
-                        showStartPage();
-                    }
-                }
 
                 // end splash (in the org.eclipse.core.runtime.applications
                 // extension thread must be set to "main") etc.
                 context.applicationRunning();
 
-                // create or update search index on first start-up instead of
-                // on first query
+                // create or update search index on first start-up
+                // (instead of on first query)
                 Job ensureIndexUpdated = new Job("") {
                     protected IStatus run(IProgressMonitor monitor) {
                         LocalSearchManager searchManager =
@@ -180,34 +193,33 @@ public class HelpRcpApplication implements IApplication {
                 };
                 ensureIndexUpdated.setPriority(Job.LONG);
                 ensureIndexUpdated.schedule();
+
+                // open help window
+                display().asyncExec(new Runnable() {
+                    public void run() {
+                        synchronized (STARTED_INSTANCE_LOCK) {
+                            startedInstance = HelpRcpApplication.this;
+                            String openFileArg = computeOpenFileCommandLineArg();
+                            open(openFileArg != null ? openFileArg : openFile);
+                        }
+                    }
+                });
             }
         });
 
         // try running UI loop if possible
-        if (!ensureHelpWebServerRunning()) return EXIT_OK;
         DisplayUtils.runUI();
 
         return exitCode;
-    }
-
-    private boolean ensureHelpWebServerRunning() {
-        BaseHelpSystem.setMode(BaseHelpSystem.MODE_STANDALONE);
-        if (!BaseHelpSystem.ensureWebappRunning()) {
-            System.out.println(NLS.bind(
-                    HelpBaseResources.HelpApplication_couldNotStart, Platform
-                    .getLogFileLocation().toOSString()));
-            return false;
-        }
-        return true;
     }
 
     private void armHelpWindow() {
         if (isExternalBrowserMode()) return;
 
         // exiting the application by closing the help window
-        Shell[] allShells = Display.getCurrent().getShells();
+        Shell[] allShells = display().getShells();
         if (allShells.length != 1) {
-            throw new RuntimeException("No or more than one shell found");
+            throw new RuntimeException("No or more than one shell found.");
         }
         allShells[0].addListener(SWT.Close, new Listener() {
             public void handleEvent(Event event) {
@@ -310,6 +322,13 @@ public class HelpRcpApplication implements IApplication {
      */
     private void open(String args) {
 
+        // null -> start page
+        if (args == null) {
+            BaseHelpSystem.getHelpDisplay().displayHelp(isExternalBrowserMode());
+            armHelpWindow();
+            return;
+        }
+
         // restart?
         if (ARG_RESTART.equalsIgnoreCase(args)) {
             exitCode = EXIT_RESTART;
@@ -345,7 +364,6 @@ public class HelpRcpApplication implements IApplication {
 
             // without query?
             if (searchStart < 0) {
-                ensureHelpWebServerRunning();
                 help.displayHelpResource(
                         "topic=" + encode(args.substring(ARG_TOPIC.length())),
                         isExternalBrowserMode());
@@ -360,22 +378,13 @@ public class HelpRcpApplication implements IApplication {
         if (args.startsWith(ARG_SEARCH)) {
             args = args.substring(ARG_SEARCH.length());
         }
-        ensureHelpWebServerRunning();
         help.displaySearch("searchWord=" + encode(args),
                            topic,
                            isExternalBrowserMode());
         armHelpWindow();
     }
 
-
-    private void showStartPage() {
-        ensureHelpWebServerRunning();
-        BaseHelpSystem.getHelpDisplay().displayHelp(isExternalBrowserMode());
-        armHelpWindow();
-    }
-
     private void showPageNotFoundPage() {
-        ensureHelpWebServerRunning();
         HelpDisplay helpDisplay = BaseHelpSystem.getHelpDisplay();
         String href =
             Platform.getPreferencesService().getString("org.eclipse.help.base",
@@ -396,7 +405,7 @@ public class HelpRcpApplication implements IApplication {
         }
     }
 
-    private static String computeOpenFileArg() {
+    private static String computeOpenFileCommandLineArg() {
         String[] args = Platform.getCommandLineArgs();
         if (args == null) return null;
 
