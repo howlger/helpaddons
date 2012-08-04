@@ -6,7 +6,7 @@ Bundle-SymbolicName: net.sf.helpaddons.rcp.product;singleton:=true
 Bundle-Version: 0.0.0
 Require-Bundle: org.eclipse.core.runtime;bundle-version="[3.0.0,4.0.0)",
  org.eclipse.help.base;bundle-version="[3.5.0,4.0.0)",
- org.eclipse.swt;bundle-version="[3.0.0,4.0.0)"
+ org.eclipse.help.ui;bundle-version="[3.0.0,4.0.0)"
 Bundle-ActivationPolicy: lazy
 Bundle-RequiredExecutionEnvironment: J2SE-1.4
 Export-Package: net.sf.helpaddons.rcp.product,
