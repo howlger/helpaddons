@@ -14,7 +14,7 @@
          </property>
          <property
                name="windowImages"
-               value="icons/help16.gif,icons/help32.gif,icons/help48.gif,icons/help64.gif,icons/help128.gif">
+               value="icons/help_viewer_16.gif,icons/help_viewer_24.gif,icons/help_viewer_32.gif,icons/help_viewer_48.gif,icons/help_viewer_16.png,icons/help_viewer_24.png,icons/help_viewer_32.png,icons/help_viewer_48.png,icons/help_viewer_64.png,icons/help_viewer_128.png,icons/help_viewer_256.png">
          </property>
       </product>
    </extension>
@@ -24,7 +24,7 @@
          point="org.eclipse.core.runtime.applications">
       <application
             cardinality="*"
-            icon="icons/help16.gif"
+            icon="icons/help_viewer_16.gif"
             thread="main"
             visible="true">
          <run
