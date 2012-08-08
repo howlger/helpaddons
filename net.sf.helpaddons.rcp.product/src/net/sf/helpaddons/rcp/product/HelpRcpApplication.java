@@ -60,6 +60,7 @@ public class HelpRcpApplication implements IApplication {
     private static final String ARG_IDENTIFIER_A = "-openFile"; //$NON-NLS-1$
     private static final String ARG_IDENTIFIER_B = "--openFile"; //$NON-NLS-1$
     private static final String ARG_RESTART = "??restart"; //$NON-NLS-1$
+    private static final String ARG_SHUTDOWN = "??shutdown"; //$NON-NLS-1$
     private static final String ARG_SEARCH = "??search="; //$NON-NLS-1$
     private static final String ARG_TOPIC = "??topic="; //$NON-NLS-1$
     private static final String ARG_CONTEXT_ID = "??contextId="; //$NON-NLS-1$
@@ -326,6 +327,12 @@ public class HelpRcpApplication implements IApplication {
         if (args == null) {
             BaseHelpSystem.getHelpDisplay().displayHelp(isExternalBrowserMode());
             armHelpWindow();
+            return;
+        }
+
+        // shutdown?
+        if (ARG_SHUTDOWN.equalsIgnoreCase(args)) {
+            stopHelp();
             return;
         }
 
