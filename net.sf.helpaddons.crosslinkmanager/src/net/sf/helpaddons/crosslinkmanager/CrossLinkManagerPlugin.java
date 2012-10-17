@@ -96,4 +96,8 @@ public class CrossLinkManagerPlugin implements BundleActivator, IRegistryChangeL
                                                       locale);
     }
 
+    public static boolean isPoolBundle(String bundleSymbolicName) {
+        return plugin.poolRegistry.isPoolBundle(bundleSymbolicName);
+    }
+
 }

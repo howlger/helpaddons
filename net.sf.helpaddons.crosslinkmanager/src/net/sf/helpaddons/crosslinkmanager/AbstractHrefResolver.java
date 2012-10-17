@@ -15,6 +15,7 @@ import org.eclipse.core.runtime.Path;
 
 public abstract class AbstractHrefResolver implements IHrefResolver {
 
+    private static final String ABSOLUTE_POOL_PATH_PREFIX = "/pool/";
     /** The source directory of the HTML file which contains the links to
      *  resolve. */
     private final IPath sourceDir;
@@ -29,10 +30,41 @@ public abstract class AbstractHrefResolver implements IHrefResolver {
 
     final public String resolve(String targetHref) {
         if (   targetHref.startsWith("/")
-            || targetHref.startsWith("\\"))
-            return targetHref.replace('\\', '/').startsWith("/help/topic/")
+            || targetHref.startsWith("\\")) {
+            String targetHrefNormalized =
+                targetHref.replace('\\', '/').toLowerCase();
+
+            // (absolute) pool link ("/pool/...")?
+            if (targetHrefNormalized.startsWith(ABSOLUTE_POOL_PATH_PREFIX)) {
+
+                char[] pathUp = new char[sourceDir.segmentCount() * 3];
+                for (int i = 0; i < pathUp.length; i += 3) {
+                    pathUp[i] = '.';
+                    pathUp[i+1] = '.';
+                    pathUp[i+2] = '/';
+                }
+                String absolute =
+                    targetHref.substring(ABSOLUTE_POOL_PATH_PREFIX.length());
+
+                if (computeExistsInSourceBundle(absolute)) {
+                    return String.valueOf(pathUp) + absolute;
+                }
+
+                String targetBundle = computeTargetBundle(absolute);
+                return targetBundle == null
+                       ? null
+                       :   String.valueOf(pathUp)
+                         + "../"
+                         + targetBundle
+                         + "/"
+                         + absolute;
+            }
+
+            // absolute non-pool link?
+            return targetHrefNormalized.startsWith("/help/topic/")
                    ? targetHref
                    : null;
+        }
 
         IPath absolutePath = sourceDir.append(targetHref);
 
@@ -66,7 +98,7 @@ public abstract class AbstractHrefResolver implements IHrefResolver {
     /**
      * @param href the HTML reference (path) of the HTML file to look for
      * @return the bundle symbolic name of the bundle which contains the
-     *         specified help resource or {@code null} if no the resource can
+     *         specified help resource or {@code null} if the resource can
      *         not be found in the pool
      */
     protected abstract String computeTargetBundle(String href);

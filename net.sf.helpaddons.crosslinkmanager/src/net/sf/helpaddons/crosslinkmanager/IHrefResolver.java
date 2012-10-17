@@ -14,8 +14,8 @@ public interface IHrefResolver {
 
     /**
      * @param href the link target to resolve
-     * @return the the maybe redirected link target or {@code null} if the link
-     *         can not resolved (error 404: file not found)
+     * @return the (maybe redirected) link target or {@code null} if the link
+     *         can not be resolved (error 404: file not found)
      */
     String resolve(String href);
 
