@@ -26,12 +26,12 @@ public class AbstractHrefResolverTest {
 
         @Override
         protected boolean computeExistsInSourceBundle(String href) {
-            return href.equals("inSource.htm");
+            return href.endsWith("inSource.htm");
         }
 
         @Override
         protected String computeTargetBundle(String href) {
-            if (href.equals("nirvana.htm")) return null;
+            if (href.endsWith("nirvana.htm")) return null;
 
             return "pool";
         }
@@ -90,6 +90,42 @@ public class AbstractHrefResolverTest {
         assertResolved("\\help/topic\\other.plugin/topic.htm",
                        "dir/page.htm",
                        "\\help/topic\\other.plugin/topic.htm");
+    }
+
+    @Test
+    public void testPoolLinks() throws Exception {
+
+        // in same plug-in
+        assertResolved("inSource.htm", "page.htm", "/pool/inSource.htm");
+        assertResolved("../inSource.htm", "dir/page.htm", "/pool/inSource.htm");
+        assertResolved("../../inSource.htm",
+                       "sub/dir/page.htm",
+                       "/pool/inSource.htm");
+        assertResolved("dir/inSource.htm",
+                       "page.htm",
+                       "/pool/dir/inSource.htm");
+        assertResolved("../../sub/dir/inSource.htm",
+                       "sub/dir/page.htm",
+                       "/pool/sub/dir/inSource.htm");
+
+        // in other plug-in
+        assertResolved("../pool/target.htm", "page.htm", "/pool/target.htm");
+        assertResolved("../pool/dir/target.htm",
+                       "page.htm",
+                       "/pool/dir/target.htm");
+        assertResolved("../pool/sub/dir/target.htm",
+                       "page.htm",
+                       "/pool/sub/dir/target.htm");
+        assertResolved("../../pool/target.htm",
+                       "dir/page.htm",
+                       "/pool/target.htm");
+        assertResolved("../../../pool/sub/dir/target.htm",
+                       "dir/sub/page.htm",
+                       "/pool/sub/dir/target.htm");
+
+        // target doesn't exist
+        assertResolved(null, "page.htm", "/pool/nirvana.htm");
+        assertResolved(null, "dir/page.htm", "/pool/dir/nirvana.htm");
     }
 
     @Test

@@ -71,6 +71,11 @@ public class CrossLinksResolvedInputStream extends InputStream {
     private int ringBufferEnd = 0;
     private boolean awaitEndTag = false;
 
+    /**
+     * @param in the input stream to wrap and to resolve the containing cross-
+     *           links; must not be {@null}
+     * @param hrefResolver the resolver to use to resolve cross links
+     */
     public CrossLinksResolvedInputStream(InputStream in,
                                          IHrefResolver hrefResolver) {
         this.in = in;
@@ -88,6 +93,7 @@ public class CrossLinksResolvedInputStream extends InputStream {
    }
 
     public int read() throws IOException {
+        if (in == null) return -1; // even if "in" must not be null
 
         if (ringBufferStart == ringBufferEnd) {
 
@@ -456,7 +462,9 @@ public class CrossLinksResolvedInputStream extends InputStream {
     @Override
     public void close() throws IOException {
         try {
-            in.close();
+            if (in != null) {
+                in.close();
+            }
         } finally {
             super.close();
         }

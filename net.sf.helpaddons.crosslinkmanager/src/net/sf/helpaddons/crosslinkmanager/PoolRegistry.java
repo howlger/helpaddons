@@ -26,6 +26,8 @@ public class PoolRegistry {
     private IStaticHelpContent helpContent =
         IStaticHelpContent.DEFAULT;
 
+    private Set<String> allBundels = new HashSet<String>();
+
     public void setHelpContentDelegate(IStaticHelpContent helpContent) {
         this.helpContent = helpContent == null
                            ? IStaticHelpContent.DEFAULT
@@ -44,11 +46,14 @@ public class PoolRegistry {
 
         Map<String, List<String>> preferredBundlesReverse =
             new HashMap<String, List<String>>();
+        Set<String> allBundels = new HashSet<String>();
         for (IExtension ext : contentPoolsExtensions) {
             String bundleSymbolicName = ext.getNamespaceIdentifier();
             IConfigurationElement[] childElements = ext.getConfigurationElements();
             for (IConfigurationElement element : childElements) {
                 if (!"pool".equals(element.getName())) continue;
+
+                allBundels.add(bundleSymbolicName);
 
                 String pool = element.getAttribute("id"); //$NON-NLS-1$
                 pools.add(pool);
@@ -108,6 +113,8 @@ public class PoolRegistry {
         }
 
         synchronized (this) {
+            this.allBundels.clear();
+            this.allBundels.addAll(allBundels);
             lookUpMap.clear();
             for (String pool : pools) {
                 List<String> bundlesInSamePool = bundlesOfPool.get(pool);
@@ -172,6 +179,12 @@ public class PoolRegistry {
                                   specificErrorPages.get(sourceBundle),
                                   lookUpList,
                                   helpContent);
+    }
+
+    public boolean isPoolBundle(String bundleSymbolicName) {
+        synchronized (this) {
+            return allBundels.contains(bundleSymbolicName);
+        }
     }
 
     private static class MyHrefResolver extends AbstractHrefResolver {
