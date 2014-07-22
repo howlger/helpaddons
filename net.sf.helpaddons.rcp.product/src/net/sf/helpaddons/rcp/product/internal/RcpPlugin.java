@@ -43,7 +43,7 @@ public class RcpPlugin {
      */
     public static void log(String message, Throwable throwable) {
         ILog log = Platform.getLog(Platform.getBundle(ID));
-        log.log(new Status(IStatus.ERROR, ID,message, throwable));
+        log.log(new Status(IStatus.ERROR, ID, message, throwable));
     }
 
 }

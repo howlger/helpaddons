@@ -23,12 +23,14 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Platform;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.core.runtime.jobs.Job;
+import org.eclipse.core.runtime.preferences.ConfigurationScope;
 import org.eclipse.equinox.app.IApplication;
 import org.eclipse.equinox.app.IApplicationContext;
 import org.eclipse.help.HelpSystem;
 import org.eclipse.help.IContext;
 import org.eclipse.help.IHelpResource;
 import org.eclipse.help.internal.base.BaseHelpSystem;
+import org.eclipse.help.internal.base.HelpApplication;
 import org.eclipse.help.internal.base.HelpBaseResources;
 import org.eclipse.help.internal.base.HelpDisplay;
 import org.eclipse.help.internal.search.LocalSearchManager;
@@ -43,6 +45,7 @@ import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
+import org.eclipse.ui.preferences.ScopedPreferenceStore;
 import org.osgi.framework.Bundle;
 
 /**
@@ -59,11 +62,19 @@ public class HelpRcpApplication implements IApplication {
 
     private static final String ARG_IDENTIFIER_A = "-openFile"; //$NON-NLS-1$
     private static final String ARG_IDENTIFIER_B = "--openFile"; //$NON-NLS-1$
-    private static final String ARG_RESTART = "??restart"; //$NON-NLS-1$
-    private static final String ARG_SHUTDOWN = "??shutdown"; //$NON-NLS-1$
-    private static final String ARG_SEARCH = "??search="; //$NON-NLS-1$
-    private static final String ARG_TOPIC = "??topic="; //$NON-NLS-1$
-    private static final String ARG_CONTEXT_ID = "??contextId="; //$NON-NLS-1$
+    private static final String ARG_RESTART = "/restart"; //$NON-NLS-1$
+    private static final String ARG_SHUTDOWN = "/shutdown"; //$NON-NLS-1$
+    private static final String ARG_SEARCH = "/search:"; //$NON-NLS-1$
+    private static final String ARG_TOPIC = "/topic:"; //$NON-NLS-1$
+    private static final String ARG_CONTEXT_ID = "/csh:"; //$NON-NLS-1$
+
+    // last
+    private static final int LAST_TIMEOUT = 3000;
+
+    private volatile String lastTopic;
+    private volatile long lastTopicTime;
+    private volatile String lastSearch;
+    private volatile long lastSearchTime;
 
     /**
      * One of the states which are defined in
@@ -127,6 +138,10 @@ public class HelpRcpApplication implements IApplication {
             invoke("wakeup"); //$NON-NLS-1$
         }
 
+        static void waitForDisplay() {
+            invoke("waitFor"); //$NON-NLS-1$
+        }
+
         private static void invoke(String method) {
             try {
                 Bundle bundle = Platform.getBundle(HELP_UI_PLUGIN_ID);
@@ -137,6 +152,7 @@ public class HelpRcpApplication implements IApplication {
                 Method m = c.getMethod(method, new Class[] {});
                 m.invoke(null, new Object[] {});
             } catch (Exception e) {
+                RcpPlugin.log(e);
             }
         }
     }
@@ -157,6 +173,35 @@ public class HelpRcpApplication implements IApplication {
 
         Display.setAppName(context.getBrandingName());
         display().addListener(SWT.OpenDocument, OPEN_FILE_LISTENER);
+        HelpApplication.setShutdownOnClose(true);
+
+        // restart on init?
+        if (System.getProperty("restartOnInit") != null) {
+            ScopedPreferenceStore store =
+                    new ScopedPreferenceStore(ConfigurationScope.INSTANCE,
+                            "net.sf.helpaddons.rcp.product");
+            boolean initDone = store.getBoolean("INIT");
+            if (!initDone) {
+                store.setValue("INIT", true);
+                store.save();
+                return EXIT_RESTART;
+            }
+        }
+
+        // restart always? (except last restart was less than 10 Minutes ago)
+        if (System.getProperty("restartAlways") != null) {
+            ScopedPreferenceStore store =
+                    new ScopedPreferenceStore(ConfigurationScope.INSTANCE,
+                            "net.sf.helpaddons.rcp.product");
+            int lastRestart = store.getInt("LAST_RESTART");
+            int currentTimeInMinutes =
+                    (int)(System.currentTimeMillis() / 1000 / 60);
+            if (currentTimeInMinutes > lastRestart + 10) {
+                store.setValue("LAST_RESTART", currentTimeInMinutes);
+                store.save();
+                return EXIT_RESTART;
+            }
+        }
 
         // start web server
         BaseHelpSystem.setMode(BaseHelpSystem.MODE_STANDALONE);
@@ -310,23 +355,24 @@ public class HelpRcpApplication implements IApplication {
 
         // UI loop may be sleeping if no SWT browser is up
         DisplayUtils.wakeupUI();
-
     }
 
     /**
      * @param args search word to query, topic or context ID to open (search
      *             word and topic can be combined); Examples:
-     *             <ul><li>??topic=/my.plugin/path/file.htm</li>
-     *                 <li>??search=my query</li>
-     *                 <li>??topic=/my.plugin/path/file.htm??search=query</li>
-     *                 <li>???contextId=my.plugin.context_sensitive_help_123</li>
+     *             <ul><li>/topic:/my.plugin/path/file.htm</li>
+     *                 <li>/search:&quot;my query&quot;</li>
+     *                 <li>/topic:/my.plugin/path/file.htm /search=&quot;my query&quot;</li>
+     *                 <li>/csh:my.plugin.context_sensitive_help_id123</li>
      */
     private void open(String args) {
 
         // null -> start page
         if (args == null) {
             BaseHelpSystem.getHelpDisplay().displayHelp(isExternalBrowserMode());
-            armHelpWindow();
+            if (!HelpApplication.isShutdownOnClose()) {
+                armHelpWindow();
+            }
             return;
         }
 
@@ -362,33 +408,52 @@ public class HelpRcpApplication implements IApplication {
 
         // topic to open?
         HelpDisplay help = BaseHelpSystem.getHelpDisplay();
-        String topic = "";
+        String topic = null;
         if (args.startsWith(ARG_TOPIC)) {
-            int searchStart = args.indexOf(ARG_SEARCH, ARG_TOPIC.length());
-            topic = searchStart < 0
-                    ? args.substring(ARG_TOPIC.length()).trim()
-                    : args.substring(ARG_TOPIC.length(), searchStart).trim();
+            topic = args.substring(ARG_TOPIC.length()).trim();
+            synchronized (this) {
+                lastTopic = topic;
+                lastTopicTime = System.currentTimeMillis();
+            }
 
             // without query?
-            if (searchStart < 0) {
+            if (   lastSearch == null
+                || lastSearchTime < System.currentTimeMillis() - 3000) {
                 help.displayHelpResource(
                         "topic=" + encode(args.substring(ARG_TOPIC.length())),
                         isExternalBrowserMode());
-                armHelpWindow();
+                if (!HelpApplication.isShutdownOnClose()) {
+                    armHelpWindow();
+                }
                 return;
             }
-
-            args = args.substring(searchStart + ARG_SEARCH.length()).trim();
         }
 
         // with query
         if (args.startsWith(ARG_SEARCH)) {
             args = args.substring(ARG_SEARCH.length());
         }
+        if (topic == null) {
+            synchronized (this) {
+                lastSearch = args;
+                lastSearchTime = System.currentTimeMillis();
+            }
+            if (    lastTopic != null
+                 && lastTopicTime > System.currentTimeMillis() - LAST_TIMEOUT) {
+                topic = lastTopic;
+            }
+        } else {
+            if (   lastSearch != null
+                && lastSearchTime > System.currentTimeMillis() - LAST_TIMEOUT) {
+                args = lastSearch;
+            }
+        }
         help.displaySearch("searchWord=" + encode(args),
-                           topic,
+                           topic == null ? "" : topic,
                            isExternalBrowserMode());
-        armHelpWindow();
+        if (!HelpApplication.isShutdownOnClose()) {
+            armHelpWindow();
+        }
     }
 
     private void showPageNotFoundPage() {
@@ -399,7 +464,9 @@ public class HelpRcpApplication implements IApplication {
                                                        null,
                                                        null);
         helpDisplay.displayHelpResource(href, isExternalBrowserMode());
-        armHelpWindow();
+        if (!HelpApplication.isShutdownOnClose()) {
+            armHelpWindow();
+        }
     }
 
     private static String encode(String string) {
