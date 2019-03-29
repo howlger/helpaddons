@@ -54,6 +54,8 @@ public interface IStaticHelpContent {
      * @see org.eclipse.help.internal.protocols.HelpURLConnection#getLocalHelp(Bundle)
      */
     InputStream getInputStream(String plugin, String href, Locale locale);
+    InputStream getInputStream(String plugin, String href, String locale);
+
 
     /**
      * Tests if the specified static help resource exists and can be opened.
@@ -64,13 +66,24 @@ public interface IStaticHelpContent {
      * @return static help resource as {@link InputStream}
      */
     boolean checkExists(String pluginId, String href, Locale locale);
+    boolean checkExists(String pluginId, String href, String locale);
 
     public static final IStaticHelpContent DEFAULT =
         new IStaticHelpContent() {
 
+          public InputStream getInputStream(String plugin,
+                                            String href,
+                                            Locale locale) {
+              return getInputStream(plugin,
+                                    href,
+                                    locale == null ? null : locale.toString());
+          }
+
+
            public InputStream getInputStream(String plugin,
-                   String href,
-                   Locale locale) {
+                                             String href,
+                                             String locale) {
+               if (Platform.getBundle(plugin) == null) return null;
 
                // href without query
                int queryDelimiterIndex = href.indexOf('?');
@@ -82,9 +95,9 @@ public interface IStaticHelpContent {
 
                // 1. first try to find the file inside "doc.zip"...
                InputStream in = openFromZip(bundle,
-                       "doc.zip", //$NON-NLS-1$
-                       hrefWithoutQuery,
-                       locale == null ? null : locale.toString());
+                                            "doc.zip", //$NON-NLS-1$
+                                            hrefWithoutQuery,
+                                            locale == null ? null : locale.toString());
                if (in != null) return in;
 
                // 2. ... and then try the file system
@@ -97,6 +110,14 @@ public interface IStaticHelpContent {
            public boolean checkExists(String pluginId,
                                       String href,
                                       Locale locale) {
+               return checkExists(pluginId,
+                                  href,
+                                  locale == null ? null : locale.toString());
+           }
+
+           public boolean checkExists(String pluginId,
+                                      String href,
+                                      String locale) {
 // TODO replace with find: "!/" for ZIP
                InputStream resource = null;
                try {

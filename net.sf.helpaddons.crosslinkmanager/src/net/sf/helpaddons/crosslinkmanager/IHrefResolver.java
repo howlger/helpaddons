@@ -12,6 +12,13 @@ package net.sf.helpaddons.crosslinkmanager;
 
 public interface IHrefResolver {
 
+    /** NULL pattern. */
+    static IHrefResolver NULL = new IHrefResolver() {
+        public String resolve(String href) {return null;}
+        public String getNotFoundHref(String hrefPrefix) {return null;}
+        public String getNotFoundClassName() {return "";}
+    };
+
     /**
      * @param href the link target to resolve
      * @return the (maybe redirected) link target or {@code null} if the link

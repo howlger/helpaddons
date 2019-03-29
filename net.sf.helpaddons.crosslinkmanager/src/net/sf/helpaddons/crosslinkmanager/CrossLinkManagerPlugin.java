@@ -91,12 +91,14 @@ public class CrossLinkManagerPlugin implements BundleActivator, IRegistryChangeL
     public static IHrefResolver createHrefResolver(String sourceBundle,
                                                    String sourceHref,
                                                    Locale locale) {
+        if (plugin == null) return IHrefResolver.NULL; // may happen on shutdown
         return plugin.poolRegistry.createHrefResolver(sourceBundle,
                                                       sourceHref,
                                                       locale);
     }
 
     public static boolean isPoolBundle(String bundleSymbolicName) {
+        if (plugin == null) return false; // may happen on shutdown
         return plugin.poolRegistry.isPoolBundle(bundleSymbolicName);
     }
 

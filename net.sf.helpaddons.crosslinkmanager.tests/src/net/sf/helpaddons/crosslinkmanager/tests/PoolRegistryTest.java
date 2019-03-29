@@ -20,17 +20,16 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-import net.sf.helpaddons.crosslinkmanager.IHrefResolver;
-import net.sf.helpaddons.crosslinkmanager.IStaticHelpContent;
-import net.sf.helpaddons.crosslinkmanager.PoolRegistry;
-
 import org.eclipse.core.runtime.IConfigurationElement;
 import org.eclipse.core.runtime.IContributor;
 import org.eclipse.core.runtime.IExtension;
-import org.eclipse.core.runtime.IPluginDescriptor;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+import net.sf.helpaddons.crosslinkmanager.IHrefResolver;
+import net.sf.helpaddons.crosslinkmanager.IStaticHelpContent;
+import net.sf.helpaddons.crosslinkmanager.PoolRegistry;
 
 public class PoolRegistryTest {
 
@@ -164,11 +163,6 @@ public class PoolRegistryTest {
             return true;
         }
 
-        @Override
-        public IPluginDescriptor getDeclaringPluginDescriptor() {
-            throw new UnsupportedOperationException();
-        }
-
     }
 
     private static abstract class AbstractElement implements IConfigurationElement {
@@ -276,6 +270,11 @@ public class PoolRegistryTest {
             return "pool";
         }
 
+		@Override
+		public int getHandleId() {
+			return 0;
+		}
+
     }
 
     private static class ErrorPageElement extends AbstractElement {
@@ -310,6 +309,11 @@ public class PoolRegistryTest {
             return "errorPage";
         }
 
+		@Override
+		public int getHandleId() {
+			return 0;
+		}
+
     }
 
     private PoolExtensionBuilder builder;
@@ -330,9 +334,19 @@ public class PoolRegistryTest {
             }
 
             @Override
+            public InputStream getInputStream(String plugin, String href, String locale) {
+            	throw new UnsupportedOperationException();
+            }
+
+            @Override
             public boolean checkExists(String pluginId, String href, Locale locale) {
                 return href.contains(pluginId);
             }
+
+			@Override
+			public boolean checkExists(String pluginId, String href, String locale) {
+				return href.contains(pluginId);
+			}
         });
     }
 

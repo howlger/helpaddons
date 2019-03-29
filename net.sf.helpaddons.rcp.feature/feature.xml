@@ -2,8 +2,9 @@
 <feature
       id="net.sf.helpaddons.rcp.feature"
       label="%featureName"
-      version="0.0.0"
-      provider-name="%providerName">
+      version="1.3.4"
+      provider-name="%providerName"
+      plugin="net.sf.helpaddons.rcp.product">
 
    <description url="%descriptionUrl">
       %description
