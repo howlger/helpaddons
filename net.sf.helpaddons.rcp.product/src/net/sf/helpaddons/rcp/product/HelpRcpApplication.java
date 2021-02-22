@@ -14,9 +14,10 @@ import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
-
-import net.sf.helpaddons.rcp.product.internal.RcpPlugin;
 
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
@@ -48,6 +49,8 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.ui.preferences.ScopedPreferenceStore;
 import org.osgi.framework.Bundle;
 
+import net.sf.helpaddons.rcp.product.internal.RcpPlugin;
+
 /**
  * This is a modified copy of
  * {@link org.eclipse.help.internal.base.HelpApplication} (Eclipse version
@@ -64,9 +67,9 @@ public class HelpRcpApplication implements IApplication {
     private static final String ARG_IDENTIFIER_B = "--openFile"; //$NON-NLS-1$
     private static final String ARG_RESTART = "/restart"; //$NON-NLS-1$
     private static final String ARG_SHUTDOWN = "/shutdown"; //$NON-NLS-1$
-    private static final String ARG_SEARCH = "/search:"; //$NON-NLS-1$
-    private static final String ARG_TOPIC = "/topic:"; //$NON-NLS-1$
-    private static final String ARG_CONTEXT_ID = "/csh:"; //$NON-NLS-1$
+    private static final String ARG_SEARCH = "/search"; //$NON-NLS-1$
+    private static final String ARG_TOPIC = "/topic"; //$NON-NLS-1$
+    private static final String ARG_CONTEXT_ID = "/csh"; //$NON-NLS-1$
 
     // last
     private static final int LAST_TIMEOUT = 3000;
@@ -106,7 +109,7 @@ public class HelpRcpApplication implements IApplication {
 
                 // started?
                 if (startedInstance == null) {
-                    openFile = event.text;
+                    openFile = event.text.trim();
                     return;
                 }
 
@@ -245,8 +248,13 @@ public class HelpRcpApplication implements IApplication {
                     public void run() {
                         synchronized (STARTED_INSTANCE_LOCK) {
                             startedInstance = HelpRcpApplication.this;
-                            String openFileArg = computeOpenFileCommandLineArg();
-                            open(openFileArg != null ? openFileArg : openFile);
+                            List openFileArgs = computeOpenFileCommandLineArg();
+                            if (openFileArgs.size() == 0) {
+                                 open(openFile);
+                            }
+                            for (int i = 0; i < openFileArgs.size(); i++) {
+                                open(openFileArgs.get(i).toString());
+                            }
                         }
                     }
                 });
@@ -360,10 +368,10 @@ public class HelpRcpApplication implements IApplication {
     /**
      * @param args search word to query, topic or context ID to open (search
      *             word and topic can be combined); Examples:
-     *             <ul><li>/topic:/my.plugin/path/file.htm</li>
-     *                 <li>/search:&quot;my query&quot;</li>
-     *                 <li>/topic:/my.plugin/path/file.htm /search=&quot;my query&quot;</li>
-     *                 <li>/csh:my.plugin.context_sensitive_help_id123</li>
+     *             <ul><li>&quot;/topic /my.plugin/path/file.html&quot;</li>
+     *                 <li>&quot;/search my query&quot;</li>
+     *                 <li>&quot;/topic /my.plugin/path/file.htm&quot; &quot;/search my query&quot;</li>
+     *                 <li>&quot;/csh my.plugin.context_sensitive_help_id123&quot;</li>
      */
     private void open(String args) {
 
@@ -375,23 +383,24 @@ public class HelpRcpApplication implements IApplication {
             }
             return;
         }
+        String argsTrimmed = args.trim();
 
         // shutdown?
-        if (ARG_SHUTDOWN.equalsIgnoreCase(args)) {
+        if (ARG_SHUTDOWN.equalsIgnoreCase(argsTrimmed)) {
             stopHelp();
             return;
         }
 
         // restart?
-        if (ARG_RESTART.equalsIgnoreCase(args)) {
+        if (ARG_RESTART.equalsIgnoreCase(argsTrimmed)) {
             exitCode = EXIT_RESTART;
             stopHelp();
             return;
         }
 
         // context ID?
-        if (args.startsWith(ARG_CONTEXT_ID)) {
-            String contextId = args.substring(ARG_CONTEXT_ID.length());
+        if (hasPrefix(argsTrimmed, ARG_CONTEXT_ID)) {
+            String contextId = argsTrimmed.substring(ARG_CONTEXT_ID.length() + 1);
             IContext context = HelpSystem.getContext(contextId);
             if (context == null) {
                 showPageNotFoundPage();
@@ -403,14 +412,14 @@ public class HelpRcpApplication implements IApplication {
                 showPageNotFoundPage();
                 return;
             }
-            args = ARG_TOPIC + topics[0].getHref();
+            argsTrimmed = ARG_TOPIC + " " + topics[0].getHref();
         }
 
         // topic to open?
         HelpDisplay help = BaseHelpSystem.getHelpDisplay();
         String topic = null;
-        if (args.startsWith(ARG_TOPIC)) {
-            topic = args.substring(ARG_TOPIC.length()).trim();
+        if (hasPrefix(argsTrimmed, ARG_TOPIC)) {
+            topic = argsTrimmed.substring(ARG_TOPIC.length() + 1).trim();
             synchronized (this) {
                 lastTopic = topic;
                 lastTopicTime = System.currentTimeMillis();
@@ -420,7 +429,7 @@ public class HelpRcpApplication implements IApplication {
             if (   lastSearch == null
                 || lastSearchTime < System.currentTimeMillis() - 3000) {
                 help.displayHelpResource(
-                        "topic=" + encode(args.substring(ARG_TOPIC.length())),
+                        "topic=" + encode(topic),
                         isExternalBrowserMode());
                 if (!HelpApplication.isShutdownOnClose()) {
                     armHelpWindow();
@@ -430,12 +439,12 @@ public class HelpRcpApplication implements IApplication {
         }
 
         // with query
-        if (args.startsWith(ARG_SEARCH)) {
-            args = args.substring(ARG_SEARCH.length());
+        if (hasPrefix(argsTrimmed, ARG_SEARCH)) {
+            argsTrimmed = argsTrimmed.substring(ARG_SEARCH.length() + 1).trim();
         }
         if (topic == null) {
             synchronized (this) {
-                lastSearch = args;
+                lastSearch = argsTrimmed;
                 lastSearchTime = System.currentTimeMillis();
             }
             if (    lastTopic != null
@@ -445,15 +454,21 @@ public class HelpRcpApplication implements IApplication {
         } else {
             if (   lastSearch != null
                 && lastSearchTime > System.currentTimeMillis() - LAST_TIMEOUT) {
-                args = lastSearch;
+                argsTrimmed = lastSearch;
             }
         }
-        help.displaySearch("searchWord=" + encode(args),
+        help.displaySearch("searchWord=" + encode(argsTrimmed),
                            topic == null ? "" : topic,
                            isExternalBrowserMode());
         if (!HelpApplication.isShutdownOnClose()) {
             armHelpWindow();
         }
+    }
+
+    private boolean hasPrefix(String args, String suffix) {
+        return    args != null
+               && args.length() > suffix.length()
+               && Character.isWhitespace(args.charAt(suffix.length()));
     }
 
     private void showPageNotFoundPage() {
@@ -479,10 +494,11 @@ public class HelpRcpApplication implements IApplication {
         }
     }
 
-    private static String computeOpenFileCommandLineArg() {
+    private static List computeOpenFileCommandLineArg() {
         String[] args = Platform.getCommandLineArgs();
-        if (args == null) return null;
+        if (args == null) return Collections.EMPTY_LIST;
 
+        List result = new ArrayList();
         for (int i = 0; i < args.length; i++) {
 
             // without identifier
@@ -490,15 +506,15 @@ public class HelpRcpApplication implements IApplication {
                 || args[i].startsWith(ARG_SEARCH)
                 || args[i].startsWith(ARG_TOPIC)
                 || args[i].startsWith(ARG_CONTEXT_ID))
-                return args[i];
+                result.add(args[i]);
 
             // with identifier "--openFile"
             if (   i + 1 < args.length
                 && (   args[i].equalsIgnoreCase(ARG_IDENTIFIER_A)
                     || args[i].equalsIgnoreCase(ARG_IDENTIFIER_B)))
-                return args[i + 1];
+                result.add(args[i + 1]);
         }
-        return null;
+        return result;
     }
 
 }
